@@ -1,4 +1,5 @@
 #pragma once
+#include "array.h"
 #include "string.h"
 
 enum struct network_server_state
@@ -29,9 +30,9 @@ enum struct http_method
 struct http_request
 {
 	http_method method;
-	string query;
-	string version;
-	string content_type;
+	u16string query;
+	u16string version;
+	u16string content_type;
 
 	bool setup(const char32 *source);
 	void clear();
@@ -39,10 +40,10 @@ struct http_request
 
 struct http_response
 {
-	string version;
-	string status_code;
-	string status_message;
-	string content_type;
+	u16string version;
+	u16string status_code;
+	u16string status_message;
+	u16string content_type;
 	array<byte> data;
 
 	void compose(array<byte> *target);

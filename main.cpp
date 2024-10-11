@@ -2,7 +2,6 @@
 #include "tests.h"
 #include "vector.h"
 #include "matrix.h"
-#include "frame_templates.h"
 #include "os_api.h"
 #include <Windows.h>
 
@@ -23,7 +22,7 @@ int __stdcall wWinMain(
 	//test_file();
 	//test_fileset();
 	//test_web_server();
-	//test_structured_file();
+	//test_json();
 
 	os_message_loop();
 

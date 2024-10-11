@@ -1,6 +1,7 @@
 #pragma once
 #include "vector.h"
 #include "time.h"
+#include "observer.h"
 
 enum struct mouse_button
 {
@@ -26,6 +27,10 @@ struct mouse_device
 	bool x1_pressed;
 	bool x2_pressed;
 	nanoseconds double_click_time;
+	observer<> mouse_click;
+	observer<> mouse_release;
+	observer<> mouse_move;
+	observer<> mouse_wheel_rotate;
 
 	mouse_device();
 };
@@ -80,6 +85,9 @@ struct keyboard_device
 	char32 char_code;
 	bool key_pressed[256];
 	uint32 pressed_count;
+	observer<> key_press;
+	observer<> key_release;
+	observer<> char_input;
 
 	keyboard_device();
 };

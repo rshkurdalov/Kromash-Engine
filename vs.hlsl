@@ -13,7 +13,7 @@ VS_OUTPUT VS(float4 inPos : POSITION, float2 inTexCoord : TEXCOORD)
 {
     VS_OUTPUT output;
 
-    output.Pos = mul(inPos, WVP);
+    output.Pos = inPos;
     output.TexCoord = inTexCoord;
 
     return output;

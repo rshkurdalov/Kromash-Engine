@@ -12,7 +12,10 @@ typedef unsigned long long uint64;
 typedef char char8;
 typedef char16_t char16;
 typedef char32_t char32;
+typedef wchar_t wchar;
 typedef unsigned char byte;
+typedef float float32;
+typedef double float64;
 
 template<typename value_type> struct key
 {
@@ -26,6 +29,14 @@ template<typename value_type> struct key
 	bool operator<(const key &value) const
 	{
 		return key_value < value.key_value;
+	}
+};
+
+template<typename value_type> struct copier
+{
+	void operator()(const value_type &input, value_type *output)
+	{
+		*output = input;
 	}
 };
 
@@ -45,12 +56,4 @@ template<typename base_type> struct handleable
 	handleable() {}
 	handleable(void *object, base_type *core)
 		: object(object), core(core) {}
-};
-
-template<typename application> struct utility
-{
-	void copy(const application &source, application *target)
-	{
-		*target = source;
-	}
 };

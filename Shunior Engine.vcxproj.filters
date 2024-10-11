@@ -34,15 +34,6 @@
     <ClCompile Include="frame.cpp">
       <Filter>Исходные файлы\ui</Filter>
     </ClCompile>
-    <ClCompile Include="ui_ext.cpp">
-      <Filter>Исходные файлы\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="frame_templates.cpp">
-      <Filter>Исходные файлы\ui</Filter>
-    </ClCompile>
-    <ClCompile Include="linear_algebra.cpp">
-      <Filter>Исходные файлы\math</Filter>
-    </ClCompile>
     <ClCompile Include="geometry.cpp">
       <Filter>Исходные файлы\math</Filter>
     </ClCompile>
@@ -100,11 +91,14 @@
     <ClCompile Include="scene_frame.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
-    <ClCompile Include="structured_file.cpp">
-      <Filter>Исходные файлы\data</Filter>
-    </ClCompile>
     <ClCompile Include="external_data.cpp">
       <Filter>Исходные файлы</Filter>
+    </ClCompile>
+    <ClCompile Include="ui_base.cpp">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClCompile>
+    <ClCompile Include="layout_model.cpp">
+      <Filter>Исходные файлы\ui</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -126,17 +120,8 @@
     <ClInclude Include="frame.h">
       <Filter>Исходные файлы\ui</Filter>
     </ClInclude>
-    <ClInclude Include="ui_types.h">
+    <ClInclude Include="ui_base.h">
       <Filter>Исходные файлы\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="ui_ext.h">
-      <Filter>Исходные файлы\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="frame_templates.h">
-      <Filter>Исходные файлы\ui</Filter>
-    </ClInclude>
-    <ClInclude Include="linear_algebra.h">
-      <Filter>Исходные файлы\math</Filter>
     </ClInclude>
     <ClInclude Include="geometry.h">
       <Filter>Исходные файлы\math</Filter>
@@ -186,11 +171,35 @@
     <ClInclude Include="scene_frame.h">
       <Filter>Исходные файлы</Filter>
     </ClInclude>
-    <ClInclude Include="structured_file.h">
+    <ClInclude Include="json.h">
       <Filter>Исходные файлы\data</Filter>
     </ClInclude>
     <ClInclude Include="external_data.h">
       <Filter>Исходные файлы</Filter>
+    </ClInclude>
+    <ClInclude Include="flow_layout.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="scroll_bar.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="grid_layout.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="push_button.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="text_field.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="window.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="layout_model.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="observer.h">
+      <Filter>Исходные файлы\global</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

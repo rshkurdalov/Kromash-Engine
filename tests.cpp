@@ -4,14 +4,11 @@
 #include "vector.h"
 #include "matrix.h"
 #include "array.h"
-#include "frame.h"
-#include "frame_templates.h"
 #include "set.h"
 #include "file.h"
 #include "fileset.h"
 #include "network.h"
-#include "scene_frame.h"
-#include "structured_file.h"
+#include "geometry.h"
 
 void test_array()
 {
@@ -55,7 +52,7 @@ void test_array()
 
 void test_string()
 {
-	string str, str1;
+	u32string str, str1;
 	str << U"text";
 	str << U"text";
 	str << U"text";
@@ -79,9 +76,6 @@ void test_string()
 	p >> v3;
 	p.position = 0;
 	str.clear();
-	p >> str;
-	str << U' ';
-	p >> str;
 }
 
 void test_vector()
@@ -183,33 +177,12 @@ void test_real()
 	l = root(100000000.0r, 8); // l = 10
 }
 
-void test_linear_algebra()
-{
-	real r = angle_normal(0.111408460r).y; // r = 0.644217687
-	r = vector_angle(angle_normal(0.111408460r));
-	r = angle_normal(0.5r).y; // r = 0
-	r = vector_angle(angle_normal(0.5r));
-	r = angle_normal(1.0r).y; // r = 0
-	r = angle_normal(-1.0r).y; // r = 0
-	r = vector_angle(angle_normal(-1.0r));
-	r = angle_normal(1.5r).y; // r = 0
-	r = vector_angle(angle_normal(1.5r));
-	r = angle_normal(0.0r).y; // r = 0
-	r = angle_normal(0.25r).y; // r = 1
-	r = angle_normal(-0.25r).y; // r = -1
-
-	r = angle_normal(0.0r).x; // r = 1
-	r = angle_normal(0.111408460r).x; // r = 0.764842187
-	r = angle_normal(0.5r).x; // r = -1
-
-	r = root(9.0r, 2);
-	r = root(8.0r, 3);
-	r = root(800000.0r, 2);
-
-	vector<real, 2> v = vector<real, 2>(96.107510240r - 95.080509997r, 2.660436428r - 2.380373700r);
-	r = vector_dot(v, v);
-	r = root(r, 2);
-}
+#include "window.h"
+#include "text_field.h"
+#include "flow_layout.h"
+#include "push_button.h"
+#include "grid_layout.h"
+#include "scene_frame.h"
 
 void test_ui()
 {
@@ -228,12 +201,12 @@ void test_ui()
 
 	// fl
 
-	fl->fm.width_desc = 100uiabs;
-	fl->fm.height_desc = 100uiabs;
+	fl->fm.width_desc = 100.0uiabs;
+	fl->fm.height_desc = 100.0uiabs;
 
-	string font, str;
-	font << U"cambriai";
-	str << U"ab\ncde";
+	u16string font, str;
+	font << u"cambriai";
+	str << u"ab\ncde";
 	char32 ch = U'a';
 	for(uint64 i = 0; i < 10000; i++)
 	{
@@ -251,8 +224,8 @@ void test_ui()
 		tf->data.tl.glyphs.push(gl);
 		ch++;
 	}
-	string text;
-	text << U"text 1";
+	u16string text;
+	text << u"text 1";
 	tf->data.insert(text);
 	tf->fm.width_desc = 0.8uirel;
 	tf->fm.height_desc = 0.8uirel;
@@ -261,10 +234,10 @@ void test_ui()
 	fl->data.frames.push(flow_layout_frame(handleable<frame>(tf, &tf->fm), horizontal_align::left, vertical_align::top, false));
 
 	text.clear();
-	text << U"text 2";
+	text << u"text 2";
 	tf1->data.insert(text);
-	tf1->fm.width_desc = 100uiauto;
-	tf1->fm.height_desc = 100uiauto;
+	tf1->fm.width_desc = 100.0uiauto;
+	tf1->fm.height_desc = 100.0uiauto;
 	tf1->fm.min_width = 100;
 	tf1->fm.min_height = 40;
 	tf1->data.editable = true;
@@ -274,10 +247,10 @@ void test_ui()
 	fl->data.frames.push(flow_layout_frame(handleable<frame>(tf1, &tf1->fm), horizontal_align::left, vertical_align::center, false));
 
 	text.clear();
-	text << U"text 3";
+	text << u"text 3";
 	tf2->data.insert(text);
-	tf2->fm.width_desc = 100uiauto;
-	tf2->fm.height_desc = 100uiauto;
+	tf2->fm.width_desc = 100.0uiauto;
+	tf2->fm.height_desc = 100.0uiauto;
 	//tf2->fm.min_width = 100;
 	tf2->fm.min_height = 30;
 	tf2->data.editable = true;
@@ -287,10 +260,10 @@ void test_ui()
 	fl->data.frames.push(flow_layout_frame(handleable<frame>(tf2, &tf2->fm), horizontal_align::right, vertical_align::top, true));
 
 	text.clear();
-	text << U"text 4";
+	text << u"text 4";
 	tf3->data.insert(text);
-	tf3->fm.width_desc = 100uiauto;
-	tf3->fm.height_desc = 100uiauto;
+	tf3->fm.width_desc = 100.0uiauto;
+	tf3->fm.height_desc = 100.0uiauto;
 	tf3->fm.min_width = 100;
 	tf3->fm.min_height = 30;
 	tf3->data.editable = true;
@@ -300,7 +273,7 @@ void test_ui()
 	// fl1
 
 	fl1->fm.width_desc = 1.0uirel;
-	fl1->fm.height_desc = 100uiauto;
+	fl1->fm.height_desc = 100.0uiauto;
 
 	/*text.clear();
 	text << U"text 5";
@@ -313,18 +286,18 @@ void test_ui()
 	tf4->fm.focusable = true;
 	fl1->data.frames.push(flow_layout_frame(handleable<frame>(tf4, &tf4->fm), horizontal_align::left, vertical_align::top, false));*/
 	text.clear();
-	text << U"text 5";
+	text << u"text 5";
 	pb->tf_data.insert(text);
-	pb->fm.width_desc = 100uiauto;
+	pb->fm.width_desc = 100.0uiauto;
 	pb->fm.height_desc = 1.0uirel;
 	pb->fm.min_width = 100;
 	pb->fm.min_height = 30;
 	fl1->data.frames.push(flow_layout_frame(handleable<frame>(pb, &pb->fm), horizontal_align::left, vertical_align::top, false));
 
 	text.clear();
-	text << U"text 6";
+	text << u"text 6";
 	tf5->data.insert(text);
-	tf5->fm.width_desc = 100uiabs;
+	tf5->fm.width_desc = 100.0uiabs;
 	tf5->fm.height_desc = 1.0uirel;
 	//tf5->fm.min_width = 100;
 	tf5->fm.min_height = 30;
@@ -333,9 +306,9 @@ void test_ui()
 	fl1->data.frames.push(flow_layout_frame(handleable<frame>(tf5, &tf5->fm), horizontal_align::left, vertical_align::top, false));
 
 	text.clear();
-	text << U"text 7";
+	text << u"text 7";
 	tf6->data.insert(text);
-	tf6->fm.width_desc = 100uiabs;
+	tf6->fm.width_desc = 100.0uiabs;
 	tf6->fm.height_desc = 0.5uirel;
 	tf6->fm.min_width = 100;
 	tf6->fm.min_height = 30;
@@ -345,31 +318,31 @@ void test_ui()
 
 	fl->data.frames.push(flow_layout_frame(handleable<frame>(fl1, &fl1->fm), horizontal_align::left, vertical_align::top, false));
 
-	fl->fm.margin_left = 0uiabs;
-	fl->fm.margin_bottom = 0uiabs;
-	fl->fm.margin_right = 0uiabs;
-	fl->fm.margin_top = 0uiabs;
+	fl->fm.margin_left = 0.0uiabs;
+	fl->fm.margin_bottom = 0.0uiabs;
+	fl->fm.margin_right = 0.0uiabs;
+	fl->fm.margin_top = 0.0uiabs;
 	fl->model.background_color = alpha_color(235, 235, 235, 0);
 	fl->data.direction = flow_axis::y;
 
 	/*Grid layout test*/
 
 	grid_layout *gl = new grid_layout();
-	gl->fm.margin_left = 0uiabs;
-	gl->fm.margin_bottom = 0uiabs;
-	gl->fm.margin_right = 0uiabs;
-	gl->fm.margin_top = 0uiabs;
+	gl->fm.margin_left = 0.0uiabs;
+	gl->fm.margin_bottom = 0.0uiabs;
+	gl->fm.margin_right = 0.0uiabs;
+	gl->fm.margin_top = 0.0uiabs;
 	gl->model.background_color = alpha_color(235, 235, 235, 0);
 
-	gl->data.insert_row(0, 100uiabs);
-	gl->data.insert_row(1, 100uiauto);
+	gl->data.insert_row(0, 100.0uiabs);
+	gl->data.insert_row(1, 100.0uiauto);
 	gl->data.growth_row = 1;
 	gl->data.insert_row(2, 0.2uirel);
 	
-	gl->data.insert_column(0, 100uiabs);
-	gl->data.insert_column(1, 100uiauto);
+	gl->data.insert_column(0, 100.0uiabs);
+	gl->data.insert_column(1, 100.0uiauto);
 	gl->data.growth_column = 1;
-	gl->data.insert_column(2, 50uiauto);
+	gl->data.insert_column(2, 50.0uiauto);
 
 	tf->fm.width_desc = 0.5uirel;
 	tf->fm.height_desc = 0.5uirel;
@@ -415,7 +388,7 @@ void test_ui()
 	sf->fm.focusable = true;
 	gl->fm.return_mouse_move = true;
 	gl->fm.return_mouse_click = true;
-	wnd->layout = handleable<frame>(sf, &sf->fm);
+	wnd->layout = handleable<frame>(gl, &gl->fm);
 	wnd->open();
 	wnd->update();
 }
@@ -452,16 +425,16 @@ void test_file()
 	file f;
 	f.read_access = true;
 	f.write_access = true;
-	f.filename << U"C:\\Users\\rshkurdalov\\Download";
+	f.filename << u"C:\\Users\\rshkurdalov\\Download";
 	bool b = f.exists();
-	f.filename << U's';
+	f.filename << u's';
 	b = f.exists();
-	f.filename << U"\\file1";
+	f.filename << u"\\file1";
 	f.open();
 	f.resize(2000);
 	uint64 n = f.write(f.filename.addr, f.filename.size * sizeof(char32));
 	f.position = 0;
-	string str;
+	u16string str;
 	str.insert_default(0, f.filename.size);
 	n = f.read(f.filename.size * sizeof(char32), str.addr);
 	f.close();
@@ -469,15 +442,15 @@ void test_file()
 
 void test_fileset()
 {
-	auto dump = [](fileset<int32> &fs, string *str) -> void
+	auto dump = [](fileset<int32> &fs, u16string *str) -> void
 	{
 		str->clear();
-		*str << U"elements:\n";
+		*str << u"elements:\n";
 		for(fileset_iterator<int32> iter = fs.begin(); iter.idx != -1; iter = fs.next(iter))
 		{
-			*str << U"[" << iter.node.value << U' ' << iter.node.upper << U' ' << iter.node.left << U' ' << iter.node.right << U"]\n";
+			*str << u"[" << iter.node.value << u' ' << iter.node.upper << u' ' << iter.node.left << u' ' << iter.node.right << u"]\n";
 		}
-		*str << U"free slots: ";
+		*str << u"free slots: ";
 		fileset_iterator<int32> iter;
 		iter.idx = fs.free_idx;
 		while(iter.idx != -1)
@@ -488,10 +461,10 @@ void test_fileset()
 		}
 	};
 	fileset<int32> s;
-	string filename;
-	filename << U"C:\\Users\\rshkurdalov\\Downloads\\file2.fs";
+	u16string filename;
+	filename << u"C:\\Users\\rshkurdalov\\Downloads\\file2.fs";
 	s.create(filename);
-	string str;
+	u16string str;
 	dump(s, &str);
 	s.insert(1);
 	dump(s, &str);
@@ -583,37 +556,7 @@ void test_web_server()
 	ws->run();*/
 }
 
-void test_structured_file()
+void test_json()
 {
-	string filename(U"C:\\Users\\Shunior\\Desktop\\sf.txt");
-	structured_file sf;
-
-	sf.root.name << U"root";
-	sf.root.type = snode_type::array;
-
-	sf.root.elements.push_default();
-	sf.root.elements[0].name <<= U"attr1";
-	sf.root.elements[0].type = snode_type::string;
-	sf.root.elements[0].value <<= U"value1";
-
-	sf.root.elements.push_default();
-	sf.root.elements[1].name <<= U"attr2";
-	sf.root.elements[1].type = snode_type::array;
-	sf.root.elements[1].elements.push_default();
-	sf.root.elements[1].elements[0].name <<= U"attr21";
-	sf.root.elements[1].elements[0].type = snode_type::string;
-	sf.root.elements[1].elements[0].value <<= U"value21";
-	sf.root.elements[1].elements.push_default();
-	sf.root.elements[1].elements[1].name <<= U"attr22";
-	sf.root.elements[1].elements[1].type = snode_type::string;
-	sf.root.elements[1].elements[1].value <<= U"value22";
-
-	sf.root.elements.push_default();
-	sf.root.elements[2].name <<= U"attr3";
-	sf.root.elements[2].type = snode_type::string;
-	sf.root.elements[2].value <<= U"value3";
-
-	sf.save(filename);
-	sf.clear();
-	sf.load(filename);
+	
 }

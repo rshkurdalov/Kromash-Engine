@@ -231,7 +231,7 @@ void destroy_range(value_type *begin, value_type *end)
 template<typename value_type>
 void copy(const value_type &source, value_type *target)
 {
-	utility<value_type>().copy(source, target);
+	copier<value_type>()(source, target);
 }
 
 template<typename value_type>

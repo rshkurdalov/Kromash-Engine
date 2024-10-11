@@ -3,7 +3,6 @@
 #include "matrix.h"
 #include "array.h"
 #include "geometry.h"
-#include "linear_algebra.h"
 
 struct alpha_color
 {
@@ -26,11 +25,11 @@ struct alpha_color
 
 struct gradient_stop
 {
-	real offset;
+	float32 offset;
 	alpha_color color;
 
 	gradient_stop() {}
-	gradient_stop(real offset, alpha_color color)
+	gradient_stop(float32 offset, alpha_color color)
 		: offset(offset), color(color) {}
 };
 
@@ -71,37 +70,37 @@ struct brush
 	brush_type type;
 	alpha_color color;
 	array<gradient_stop> gradients;
-	vector<real, 2> v1;
-	vector<real, 2> v2;
-	real rx;
-	real ry;
+	vector<float32, 2> v1;
+	vector<float32, 2> v2;
+	float32 rx;
+	float32 ry;
 	bitmap *bitmap_addr;
-	matrix<real, 3, 3> bitmap_transform;
-	matrix<real, 3, 3> reverse_transform;
+	matrix<float32, 3, 3> bitmap_transform;
+	matrix<float32, 3, 3> reverse_transform;
 
 	void switch_solid_color(alpha_color color_value);
 	void switch_linear_gradient(
 		gradient_stop *gradient_collection,
 		uint64 size,
-		vector<real, 2> begin,
-		vector<real, 2> end);
+		vector<float32, 2> begin,
+		vector<float32, 2> end);
 	void switch_radial_gradient(
 		gradient_stop *gradient_collection,
 		uint64 size,
-		vector<real, 2> center,
-		vector<real, 2> offset,
-		real rx_value,
-		real ry_value);
-	void switch_bitmap(bitmap *source_bitmap, matrix<real, 3, 3> &bitmap_transform_matrix);
+		vector<float32, 2> center,
+		vector<float32, 2> offset,
+		float32 rx_value,
+		float32 ry_value);
+	void switch_bitmap(bitmap *source_bitmap, matrix<float32, 3, 3> &bitmap_transform_matrix);
 };
 
 struct bitmap_processor
 {
 	rasterization_mode rasterization;
-	real line_width;
-	matrix<real, 3, 3> transform;
+	float32 line_width;
+	matrix<float32, 3, 3> transform;
 	array<rectangle<int32>> scissor_stack;
-	real opacity;
+	float32 opacity;
 	color_interpolation_mode color_interpolation;
 	brush br;
 

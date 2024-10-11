@@ -1,5 +1,4 @@
 #pragma once
-#include "real.h"
 #include "vector.h"
 
 enum struct adaptive_size_type
@@ -18,7 +17,18 @@ template<typename value_type> struct adaptive_size
 
 	adaptive_size(adaptive_size_type type, value_type value)
 		: type(type), value(value) {}
+
+	value_type resolve(value_type relative_size)
+	{
+		if(type == adaptive_size_type::relative)
+			return value * relative_size;
+		else return value;
+	}
 };
+
+adaptive_size<float32> operator""uiabs(long double value);
+adaptive_size<float32> operator""uirel(long double value);
+adaptive_size<float32> operator""uiauto(long double value);
 
 enum struct horizontal_align
 {
@@ -40,7 +50,7 @@ enum struct flow_axis
 	y
 };
 
-enum struct flow_offset
+enum struct flow_line_offset
 {
 	left,
 	right

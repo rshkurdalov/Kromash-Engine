@@ -1,9 +1,9 @@
-#include "frame_templates.h"
+#include "push_button.h"
+#include "window.h"
 
-void push_button_data::attach(text_field_data *tf_data)
+void push_button_data::initialize(text_field_data *tf_data)
 {
 	tf_data->tl.halign = horizontal_align::center;
-	tf_data->selection_visible = false;
 	tf_data->editable = false;
 	button_click = nullptr;
 }
@@ -22,15 +22,15 @@ void push_button_data::mouse_release(handleable<frame> fm)
 		button_click(data);
 }
 
-void push_button_model::attach(handleable<frame> fm)
+void push_button_model::initialize(handleable<frame> fm)
 {
 	rendering_size = vector<uint32, 2>(0, 0);
 }
 
-void push_button_model::render(handleable<frame> fm, vector<int32, 2> point, bitmap_processor *bp, bitmap *bmp)
+void push_button_model::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
 {
-	rectangle viewport = utility<frame>().frame_viewport(fm.core),
-		content_viewport = utility<frame>().frame_content_viewport(fm.core);
+	rectangle viewport = fm.core->frame_viewport(),
+		content_viewport = fm.core->frame_content_viewport();
 	viewport.position -= vector<int32, 2>(fm.core->x, fm.core->y);
 	if(!fm.core->visible
 		|| viewport.extent.x <= 0 || viewport.extent.y <= 0
@@ -47,16 +47,16 @@ void push_button_model::render(handleable<frame> fm, vector<int32, 2> point, bit
 			border_surface.data[i] = alpha_color(0, 0, 0, 0);
 		}
 		geometry_path path;
-		rounded_rectangle<real> rrect(
-			rectangle<real>(viewport),
-			0.07r * real(viewport.extent.x),
-			0.07r * real(viewport.extent.y));
+		rounded_rectangle<float32> rrect(
+			rectangle<float32>(viewport),
+			0.07f * float32(viewport.extent.x),
+			0.07f * float32(viewport.extent.y));
 		path.push_rounded_rectangle(rrect);
 		bitmap_processor bp_surface;
 		bp_surface.br.switch_solid_color(alpha_color(0, 0, 0, 255));
 		bp_surface.render(path, &inner_surface);
 		bp_surface.rasterization = rasterization_mode::outline;
-		bp_surface.line_width = 2.0r;
+		bp_surface.line_width = 2.0f;
 		bp_surface.br.switch_solid_color(alpha_color(100, 100, 100, 255));
 		bp_surface.render(path, &border_surface);
 	}
@@ -65,32 +65,34 @@ void push_button_model::render(handleable<frame> fm, vector<int32, 2> point, bit
 	else if(hovered_frame().object.addr == fm.object.addr)
 		bp->br.switch_solid_color(alpha_color(185, 185, 185, 255));
 	else bp->br.switch_solid_color(alpha_color(200, 200, 200, 255));
-	bp->fill_opacity_bitmap(inner_surface, vector<int32, 2>(fm.core->x, fm.core->y) - point, bmp);
+	bp->fill_opacity_bitmap(inner_surface, vector<int32, 2>(fm.core->x, fm.core->y), bmp);
 	if(pulled_frame().object.addr == fm.object.addr || hovered_frame().object.addr == fm.object.addr)
 	{
 		gradient_stop stops[2];
-		stops[0].offset = 0.0r;
+		stops[0].offset = 0.0f;
 		stops[0].color = alpha_color(140, 140, 140, 255);
-		stops[1].offset = 1.0r;
+		stops[1].offset = 1.0f;
 		stops[1].color = alpha_color(140, 140, 140, 0);
-		vector<real, 2> position = vector<real, 2>(mouse()->position - point);
-		viewport.position += vector<int32, 2>(fm.core->x, fm.core->y) - point;
-		position.x = max(position.x, real(viewport.position.x));
-		position.x = min(position.x, real(viewport.position.x + viewport.extent.x));
-		position.y = max(position.y, real(viewport.position.y));
-		position.y = min(position.y, real(viewport.position.y + viewport.extent.y));
-		real r = real(max(viewport.extent.x, viewport.extent.y) / 2);
-		bp->br.switch_radial_gradient(stops, array_size(stops), position, vector<real, 2>(0.0r, 0.0r), r, r);
+		vector<float32, 2> position = vector<float32, 2>(mouse()->position);
+		viewport.position += vector<int32, 2>(fm.core->x, fm.core->y);
+		position.x = max(position.x, float32(viewport.position.x));
+		position.x = min(position.x, float32(viewport.position.x + viewport.extent.x));
+		position.y = max(position.y, float32(viewport.position.y));
+		position.y = min(position.y, float32(viewport.position.y + viewport.extent.y));
+		float32 r = float32(max(viewport.extent.x, viewport.extent.y) / 2);
+		bp->br.switch_radial_gradient(stops, array_size(stops), position, vector<float32, 2>(0.0f, 0.0f), r, r);
 		bp->color_interpolation = color_interpolation_mode::linear;
-		bp->fill_opacity_bitmap(inner_surface, vector<int32, 2>(fm.core->x, fm.core->y) - point, bmp);
+		bp->fill_opacity_bitmap(inner_surface, vector<int32, 2>(fm.core->x, fm.core->y), bmp);
 	}
-	bp->fill_bitmap(border_surface, vector<int32, 2>(fm.core->x, fm.core->y) - point, bmp);
+	bp->fill_bitmap(border_surface, vector<int32, 2>(fm.core->x, fm.core->y), bmp);
 }
 
 bool push_button_hit_test(indefinite<frame> fm, vector<int32, 2> point)
 {
 	push_button *pb = (push_button *)(fm.addr);
-	return utility<frame>().rectangular_hit_test(&pb->fm, point);
+	return rectangle<int32>(
+		vector<int32, 2>(pb->fm.x, pb->fm.y),
+		vector<int32, 2>(pb->fm.width, pb->fm.height)).hit_test(point);
 }
 
 void push_button_subframes(indefinite<frame> fm, array<handleable<frame>> *frames)
@@ -105,11 +107,11 @@ vector<uint32, 2> push_button_content_size(indefinite<frame> fm, uint32 viewport
 	return pb->tf_data.content_size(handleable<frame>(pb, &pb->fm), viewport_width, viewport_height);
 }
 
-void push_button_render(indefinite<frame> fm, vector<int32, 2> point, bitmap_processor *bp, bitmap *bmp)
+void push_button_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
 {
 	push_button *pb = (push_button *)(fm.addr);
-	pb->model.render(handleable<frame>(pb, &pb->fm), point, bp, bmp);
-	pb->tf_data.render(handleable<frame>(pb, &pb->fm), point, bp, bmp);
+	pb->model.render(handleable<frame>(pb, &pb->fm), bp, bmp);
+	pb->tf_data.render(handleable<frame>(pb, &pb->fm), bp, bmp);
 }
 
 void push_button_mouse_click(indefinite<frame> fm)
@@ -167,33 +169,14 @@ push_button::push_button()
 	fm.subframes = push_button_subframes;
 	fm.content_size = push_button_content_size;
 	fm.render = push_button_render;
-	fm.mouse_click = push_button_mouse_click;
-	fm.mouse_release = push_button_mouse_release;
-	fm.mouse_move = push_button_mouse_move;
-	fm.focus_receive = push_button_focus_receive;
-	fm.focus_loss = push_button_focus_loss;
-	fm.mouse_wheel_rotate = push_button_mouse_wheel_rotate;
-	fm.key_press = push_button_key_press;
-	fm.char_input = push_button_char_input;
-	tf_data.attach(handleable<frame>(this, &fm));
-	pb_data.attach(&tf_data);
+	fm.mouse_click.callbacks.push(push_button_mouse_click);
+	fm.mouse_release.callbacks.push(push_button_mouse_release);
+	fm.mouse_move.callbacks.push(push_button_mouse_move);
+	fm.focus_receive.callbacks.push(push_button_focus_receive);
+	fm.focus_loss.callbacks.push(push_button_focus_loss);
+	fm.mouse_wheel_rotate.callbacks.push(push_button_mouse_wheel_rotate);
+	fm.key_press.callbacks.push(push_button_key_press);
+	fm.char_input.callbacks.push(push_button_char_input);
+	tf_data.initialize(handleable<frame>(this, &fm));
+	pb_data.initialize(&tf_data);
 }
-
-struct push_button_module_initializer
-{
-	push_button_module_initializer()
-	{
-		default_frame_callbacks()->push_button_hit_test = push_button_hit_test;
-		default_frame_callbacks()->push_button_content_size = push_button_content_size;
-		default_frame_callbacks()->push_button_subframes = push_button_subframes;
-		default_frame_callbacks()->push_button_render = push_button_render;
-		default_frame_callbacks()->push_button_mouse_click = push_button_mouse_click;
-		default_frame_callbacks()->push_button_mouse_release = push_button_mouse_release;
-		default_frame_callbacks()->push_button_mouse_move = push_button_mouse_move;
-		default_frame_callbacks()->push_button_mouse_wheel_rotate = push_button_mouse_wheel_rotate;
-		default_frame_callbacks()->push_button_focus_receive = push_button_focus_receive;
-		default_frame_callbacks()->push_button_focus_loss = push_button_focus_loss;
-		default_frame_callbacks()->push_button_key_press = push_button_key_press;
-		default_frame_callbacks()->push_button_char_input = push_button_char_input;
-	}
-} initializer;

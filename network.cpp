@@ -79,7 +79,7 @@ void http_response::compose(array<byte> *target)
 			target->size,
 			(byte *)(content_type_key),
 			(byte *)(content_type_key) + array_size(content_type_key) - 1);
-		string content_length;
+		u16string content_length;
 		content_length << data.size;
 		for(uint64 i = 0; i < content_length.size; i++)
 			target->push(byte(content_length.addr[i]));

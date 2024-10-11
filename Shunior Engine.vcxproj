@@ -23,12 +23,11 @@
     <ClCompile Include="file.cpp" />
     <ClCompile Include="flow_layout.cpp" />
     <ClCompile Include="frame.cpp" />
-    <ClCompile Include="frame_templates.cpp" />
-    <ClCompile Include="geometry.cpp" />
     <ClCompile Include="grid_layout.cpp" />
     <ClCompile Include="hardware.cpp" />
+    <ClCompile Include="layout_model.cpp" />
     <ClCompile Include="network.cpp" />
-    <ClCompile Include="linear_algebra.cpp" />
+    <ClCompile Include="geometry.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="os_api.cpp" />
     <ClCompile Include="graphics.cpp" />
@@ -38,13 +37,12 @@
     <ClCompile Include="scene_frame.cpp" />
     <ClCompile Include="scroll_bar.cpp" />
     <ClCompile Include="string.cpp" />
-    <ClCompile Include="structured_file.cpp" />
     <ClCompile Include="tests.cpp" />
     <ClCompile Include="text_field.cpp" />
     <ClCompile Include="text_layout.cpp" />
     <ClCompile Include="time.cpp" />
     <ClCompile Include="timer.cpp" />
-    <ClCompile Include="ui_ext.cpp" />
+    <ClCompile Include="ui_base.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -52,30 +50,35 @@
     <ClInclude Include="external_data.h" />
     <ClInclude Include="file.h" />
     <ClInclude Include="fileset.h" />
+    <ClInclude Include="flow_layout.h" />
+    <ClInclude Include="grid_layout.h" />
     <ClInclude Include="hardware.h" />
+    <ClInclude Include="layout_model.h" />
     <ClInclude Include="network.h" />
-    <ClInclude Include="linear_algebra.h" />
+    <ClInclude Include="geometry.h" />
     <ClInclude Include="frame.h" />
-    <ClInclude Include="frame_templates.h" />
+    <ClInclude Include="observer.h" />
     <ClInclude Include="os_api.h" />
     <ClInclude Include="parser.h" />
+    <ClInclude Include="push_button.h" />
     <ClInclude Include="real.h" />
     <ClInclude Include="scene_frame.h" />
+    <ClInclude Include="scroll_bar.h" />
     <ClInclude Include="set.h" />
     <ClInclude Include="string.h" />
-    <ClInclude Include="structured_file.h" />
+    <ClInclude Include="json.h" />
+    <ClInclude Include="text_field.h" />
     <ClInclude Include="text_layout.h" />
     <ClInclude Include="time.h" />
     <ClInclude Include="timer.h" />
-    <ClInclude Include="ui_ext.h" />
-    <ClInclude Include="ui_types.h" />
-    <ClInclude Include="geometry.h" />
+    <ClInclude Include="ui_base.h" />
     <ClInclude Include="global_operators.h" />
     <ClInclude Include="global_types.h" />
     <ClInclude Include="matrix.h" />
     <ClInclude Include="graphics.h" />
     <ClInclude Include="tests.h" />
     <ClInclude Include="vector.h" />
+    <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="dbg_view.natvis" />

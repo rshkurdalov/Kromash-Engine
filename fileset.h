@@ -29,7 +29,7 @@ template<typename value_type> struct fileset
 		storage.write_access = true;
 	}
 
-	void create(string &filename)
+	void create(u16string &filename)
 	{
 		storage.filename.reset();
 		storage.filename << filename;
@@ -37,7 +37,7 @@ template<typename value_type> struct fileset
 		clear();
 	}
 
-	void open(string &filename)
+	void open(u16string &filename)
 	{
 		storage.filename.reset();
 		storage.filename << filename;

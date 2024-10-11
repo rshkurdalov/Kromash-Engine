@@ -1,7 +1,6 @@
 #include "os_api.h"
 #include "real.h"
 #include "array.h"
-#include "frame_templates.h"
 #include "hardware.h"
 #include "timer.h"
 #include "external_data.h"
@@ -86,7 +85,7 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 	uint64 idx = windows.binary_search(key<window_data_win32>(hwnd));
 	if(idx == windows.size)
 		return DefWindowProc(hwnd, msg, wParam, lParam);
-	window *wnd = windows.addr[idx].wnd;
+	window *wnd = windows[idx].wnd;
     switch(msg)
     {
 		case WM_MOUSEMOVE:
@@ -95,8 +94,9 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 			GetCursorPos(&point);
 			mouse()->prev_position = mouse()->position;
 			mouse()->position = vector<int32, 2>(
-				int32(point.x), int32(GetSystemMetrics(SM_CYSCREEN) - 1) - int32(point.y));
-			wnd->fm.mouse_move(&wnd->fm);
+				int32(point.x), int32(GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1) - int32(point.y));
+			mouse()->mouse_move.trigger();
+			wnd->fm.mouse_move.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -110,7 +110,8 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 			mouse()->last_left_clicked_time = time;
 			mouse()->last_clicked = mouse_button::left;
 			mouse()->left_pressed = true;
-			wnd->fm.mouse_click(&wnd->fm);
+			mouse()->mouse_click.trigger();
+			wnd->fm.mouse_click.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -118,7 +119,8 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		{
 			mouse()->last_released = mouse_button::left;
 			mouse()->left_pressed = false;
-			wnd->fm.mouse_release(&wnd->fm);
+			mouse()->mouse_release.trigger();
+			wnd->fm.mouse_release.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -126,7 +128,8 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		{
 			mouse()->last_clicked = mouse_button::right;
 			mouse()->right_pressed = true;
-			wnd->fm.mouse_click(&wnd->fm);
+			mouse()->mouse_click.trigger();
+			wnd->fm.mouse_click.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -134,7 +137,8 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 		{
 			mouse()->last_released = mouse_button::right;
 			mouse()->right_pressed = false;
-			wnd->fm.mouse_release(&wnd->fm);
+			mouse()->mouse_release.trigger();
+			wnd->fm.mouse_release.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -146,7 +150,8 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 				keyboard()->key_pressed[uint8(keyboard()->last_pressed)] = true;
 				keyboard()->pressed_count++;
 			}
-			wnd->fm.key_press(&wnd->fm);
+			keyboard()->key_press.trigger();
+			wnd->fm.key_press.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -158,21 +163,24 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 				keyboard()->key_pressed[uint8(keyboard()->last_released)] = false;
 				keyboard()->pressed_count--;
 			}
-			wnd->fm.key_release(&wnd->fm);
+			keyboard()->key_release.trigger();
+			wnd->fm.key_release.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
 		case WM_CHAR:
 		{ 
 			keyboard()->char_code = char32(wParam);
-			wnd->fm.char_input(&wnd->fm);
+			keyboard()->char_input.trigger();
+			wnd->fm.char_input.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
 		case WM_MOUSEWHEEL:
 		{
 			mouse()->wheel_forward = GET_WHEEL_DELTA_WPARAM(wParam) > 0;
-			wnd->fm.mouse_wheel_rotate(&wnd->fm);
+			mouse()->mouse_wheel_rotate.trigger();
+			wnd->fm.mouse_wheel_rotate.trigger(indefinite<frame>(wnd));
 			wnd->update();
 			break;
 		}
@@ -222,8 +230,8 @@ void os_create_window(window *wnd)
 		WS_OVERLAPPEDWINDOW,
 		CW_USEDEFAULT,
 		CW_USEDEFAULT,
-		(LONG)(wnd->fm.width_desc.value.integer),
-		(LONG)(wnd->fm.height_desc.value.integer),
+		(LONG)(wnd->fm.width_desc.value),
+		(LONG)(wnd->fm.height_desc.value),
 		nullptr,  
 		nullptr,
 		GetModuleHandleW(nullptr),
@@ -233,7 +241,7 @@ void os_create_window(window *wnd)
 	BITMAPINFO bitmap_info;
 	bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bitmap_info.bmiHeader.biWidth = rect.right - rect.left;
-	bitmap_info.bmiHeader.biHeight = -(rect.bottom - rect.top);
+	bitmap_info.bmiHeader.biHeight = rect.bottom - rect.top;
 	bitmap_info.bmiHeader.biPlanes = 1;
 	bitmap_info.bmiHeader.biBitCount = 32;
 	bitmap_info.bmiHeader.biCompression = BI_RGB;
@@ -252,7 +260,7 @@ void os_create_window(window *wnd)
 void os_destroy_window(window *wnd)
 {
 #ifdef _WIN32
-	window_data_win32 *data = &windows.addr[windows.binary_search(key<window_data_win32>(HWND(wnd->handler)))];
+	window_data_win32 *data = &windows[windows.binary_search(key<window_data_win32>(HWND(wnd->handler)))];
 	DeleteObject(data->bmp);
 	DeleteDC(data->dc);
 	DestroyWindow(HWND(wnd->handler));
@@ -288,12 +296,12 @@ void os_update_window_size(window *wnd)
 #ifdef _WIN32
 	RECT rect;
 	GetClientRect(HWND(wnd->handler), &rect);
-	window_data_win32 *data = &windows.addr[windows.binary_search(key<window_data_win32>(HWND(wnd->handler)))];
+	window_data_win32 *data = &windows[windows.binary_search(key<window_data_win32>(HWND(wnd->handler)))];
 	DeleteObject(data->bmp);
 	BITMAPINFO bitmap_info;
 	bitmap_info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
 	bitmap_info.bmiHeader.biWidth = rect.right - rect.left;
-	bitmap_info.bmiHeader.biHeight = -(rect.bottom - rect.top);
+	bitmap_info.bmiHeader.biHeight = rect.bottom - rect.top;
 	bitmap_info.bmiHeader.biPlanes = 1;
 	bitmap_info.bmiHeader.biBitCount = 32;
 	bitmap_info.bmiHeader.biCompression = BI_RGB;
@@ -307,11 +315,13 @@ void os_update_window_size(window *wnd)
 
 vector<int32, 2> os_window_content_position(window *wnd)
 {
+	RECT rect;
+	GetClientRect((HWND)(wnd->handler), &rect);
 	POINT point;
-	point.x = 0;
-	point.y = (LONG)(wnd->fm.height);
+	point.x = rect.left;
+	point.y = rect.bottom;
 	ClientToScreen((HWND)(wnd->handler), &point);
-	return vector<int32, 2>(int32(point.x), int32(GetSystemMetrics(SM_CYSCREEN) - 1 - point.y));
+	return vector<int32, 2>(int32(point.x), int32(GetSystemMetrics(SM_CYVIRTUALSCREEN) - 1 - point.y));
 }
 
 vector<uint32, 2> os_window_content_size(window *wnd)
@@ -323,6 +333,13 @@ vector<uint32, 2> os_window_content_size(window *wnd)
 		uint32(rect.right - rect.left),
 		uint32(rect.bottom - rect.top));
 #endif
+}
+
+vector<uint32, 2> os_screen_size()
+{
+	return vector<uint32, 2>(
+		uint32(GetSystemMetrics(SM_CXVIRTUALSCREEN)),
+		uint32(GetSystemMetrics(SM_CYVIRTUALSCREEN)));
 }
 
 void os_message_loop()
@@ -371,7 +388,7 @@ void os_window_render_buffer(window *wnd, void **bits)
 {
 #ifdef _WIN32
 	uint64 idx = windows.binary_search(key<window_data_win32>((HWND)wnd->handler));
-	window_data_win32 *wnd_data = &windows.addr[idx];
+	window_data_win32 *wnd_data = &windows[idx];
 	*bits = wnd_data->bits;
 #endif
 }
@@ -380,17 +397,28 @@ void os_render_window(window *wnd)
 {
 #ifdef _WIN32
 	uint64 idx = windows.binary_search(key<window_data_win32>((HWND)wnd->handler));
-	window_data_win32 *wnd_data = &windows.addr[idx];
+	window_data_win32 *wnd_data = &windows[idx];
 	uint8 *bits = wnd_data->bits;
-	for(uint32 i = 0; i < wnd->bmp.width * wnd->bmp.height; i++)
-	{
-		*bits = wnd->bmp.data[i].b;
-		bits++;
-		*bits = wnd->bmp.data[i].g;
-		bits++;
-		*bits = wnd->bmp.data[i].r;
-		bits += 2;
-	}
+	vector<int32, 2> position = os_window_content_position(wnd);
+	vector<uint32, 2> size = os_window_content_size(wnd),
+		screen_size = os_screen_size();
+	int32 bmp_idx;
+	for(int32 ys = position.y; ys < position.y + int32(size.y); ys++)
+		for(int32 xs = position.x; xs < position.x + int32(size.x); xs++)
+		{
+			bmp_idx = (wnd->bmp.height - 1 - ys) * int32(wnd->bmp.width) + xs;
+			if(bmp_idx < 0 || bmp_idx >= int32(screen_size.x * screen_size.y))
+			{
+				bits += 4;
+				continue;
+			}
+			*bits = wnd->bmp.data[bmp_idx].b;
+			bits++;
+			*bits = wnd->bmp.data[bmp_idx].g;
+			bits++;
+			*bits = wnd->bmp.data[bmp_idx].r;
+			bits += 2;
+		}
 	SelectObject(wnd_data->dc, wnd_data->bmp);
 	BitBlt(GetDC(wnd_data->hwnd), 0, 0,
 		(int)wnd->fm.width, (int)wnd->fm.height,
@@ -448,21 +476,9 @@ bool os_load_glyph(glyph_data *data)
 		return true;
 	}
 	GLYPHMETRICS glyph_metrics;
-	auto fixed_to_real = [](FIXED value) -> real
+	auto fixed_to_float32 = [](FIXED value) -> float32
 	{
-		real result;
-		if(value.value < 0)
-		{
-			result.integer = uint32(-value.value);
-			result.negative = true;
-		}
-		else
-		{
-			result.integer = uint32(value.value);
-			result.negative = false;
-		}
-		result.fraction = uint32(uint64(value.fract) * max_real_fraction / 65535);
-		return result;
+		return float32(value.value) + float32(value.fract) / 65535.0f;
 	};
 	SelectObject(hdc, hfont);
 	MAT2 transform = { 0, 1, 0, 0, 0, 0, 0, 1 };
@@ -491,14 +507,14 @@ bool os_load_glyph(glyph_data *data)
 	TTPOLYGONHEADER *polygon = (TTPOLYGONHEADER *)outline.addr;
 	TTPOLYCURVE *curve;
 	uint8 *contour_end;
-	vector<real, 2> last_move;
+	vector<float32, 2> last_move;
 	while((uint8 *)polygon < outline.addr + outline.size)
 	{
 		contour_end = (uint8 *)(polygon) + polygon->cb;
-		data->path.move(vector<real, 2>(
-			fixed_to_real(polygon->pfxStart.x),
-			fixed_to_real(polygon->pfxStart.y)));
-		last_move = data->path.data.addr[data->path.data.size - 1].p1;
+		data->path.move(vector<float32, 2>(
+			fixed_to_float32(polygon->pfxStart.x),
+			fixed_to_float32(polygon->pfxStart.y)));
+		last_move = data->path.data[data->path.data.size - 1].p1;
 		polygon++;
 		curve = (TTPOLYCURVE *)(polygon);
 		while((uint8 *)(curve) < contour_end)
@@ -506,29 +522,29 @@ bool os_load_glyph(glyph_data *data)
 			if(curve->wType == TT_PRIM_LINE)
 			{
 				for(uint32 iter = 0; iter < curve->cpfx; iter++)
-					data->path.push_line(vector<real, 2>(
-						fixed_to_real(curve->apfx[iter].x),
-						fixed_to_real(curve->apfx[iter].y)));
+					data->path.push_line(vector<float32, 2>(
+						fixed_to_float32(curve->apfx[iter].x),
+						fixed_to_float32(curve->apfx[iter].y)));
 			}
 			else
 			{
 				for(uint32 iter = 0; int32(iter) < curve->cpfx - 2; iter++)
 				{
 					data->path.push_quadratic_arc(
-						vector<real, 2>(
-							fixed_to_real(curve->apfx[iter].x),
-							fixed_to_real(curve->apfx[iter].y)),
-						vector<real, 2>(
-							0.5r * (fixed_to_real(curve->apfx[iter].x) + fixed_to_real(curve->apfx[iter + 1].x)),
-							0.5r * (fixed_to_real(curve->apfx[iter].y) + fixed_to_real(curve->apfx[iter + 1].y))));
+						vector<float32, 2>(
+							fixed_to_float32(curve->apfx[iter].x),
+							fixed_to_float32(curve->apfx[iter].y)),
+						vector<float32, 2>(
+							0.5f * (fixed_to_float32(curve->apfx[iter].x) + fixed_to_float32(curve->apfx[iter + 1].x)),
+							0.5f * (fixed_to_float32(curve->apfx[iter].y) + fixed_to_float32(curve->apfx[iter + 1].y))));
 				}
 				data->path.push_quadratic_arc(
-					vector<real, 2>(
-						fixed_to_real(curve->apfx[curve->cpfx - 2].x),
-						fixed_to_real(curve->apfx[curve->cpfx - 2].y)),
-					vector<real, 2>(
-						fixed_to_real(curve->apfx[curve->cpfx - 1].x),
-						fixed_to_real(curve->apfx[curve->cpfx - 1].y)));
+					vector<float32, 2>(
+						fixed_to_float32(curve->apfx[curve->cpfx - 2].x),
+						fixed_to_float32(curve->apfx[curve->cpfx - 2].y)),
+					vector<float32, 2>(
+						fixed_to_float32(curve->apfx[curve->cpfx - 1].x),
+						fixed_to_float32(curve->apfx[curve->cpfx - 1].y)));
 			}
 			curve = (TTPOLYCURVE *)(&curve->apfx[curve->cpfx]);
 		}
@@ -538,32 +554,32 @@ bool os_load_glyph(glyph_data *data)
 	data->path.orientation = face_orientation::clockwise;
 	if(data->path.data.size != 0)
 	{
-		real lx = max_real, hx = min_real, ly = max_real, hy = min_real;
+		float32 lx = 1000000.0f, hx = -1000000.0f, ly = 1000000.0f, hy = -1000000.0f;
 		for(uint64 i = 0; i < data->path.data.size; i++)
 		{
-			lx = min(lx, data->path.data.addr[i].p1.x);
-			hx = max(hx, data->path.data.addr[i].p1.x);
-			ly = min(ly, data->path.data.addr[i].p1.y);
-			hy = max(hy, data->path.data.addr[i].p1.y);
-			if(data->path.data.addr[i].type == geometry_path_unit::quadratic_arc)
+			lx = min(lx, data->path.data[i].p1.x);
+			hx = max(hx, data->path.data[i].p1.x);
+			ly = min(ly, data->path.data[i].p1.y);
+			hy = max(hy, data->path.data[i].p1.y);
+			if(data->path.data[i].type == geometry_path_unit::quadratic_arc)
 			{
-				lx = min(lx, data->path.data.addr[i].p2.x);
-				hx = max(hx, data->path.data.addr[i].p2.x);
-				ly = min(ly, data->path.data.addr[i].p2.y);
-				hy = max(hy, data->path.data.addr[i].p2.y);
+				lx = min(lx, data->path.data[i].p2.x);
+				hx = max(hx, data->path.data[i].p2.x);
+				ly = min(ly, data->path.data[i].p2.y);
+				hy = max(hy, data->path.data[i].p2.y);
 			}
 		}
 		lx = floor(lx);
 		hx = ceil(hx);
 		ly = floor(ly);
 		hy = ceil(hy);
-		data->bmp.resize((hx - lx).integer, (hy - ly).integer);
+		data->bmp.resize(uint32(hx - lx), uint32(hy - ly));
 		for(uint32 i = 0; i < data->bmp.width * data->bmp.height; i++)
 			data->bmp.data[i] = alpha_color(0, 0, 0, 0);
 		bitmap_processor bp;
-		bp.transform = translate_matrix(-lx, -ly);
+		bp.transform = translating_matrix(-lx, -ly);
 		bp.render(data->path, &data->bmp);
-		data->bmp_offset = vector<real, 2>(lx, ly);
+		data->bmp_offset = vector<float32, 2>(lx, ly);
 	}
 	data->advance.x = int32(glyph_metrics.gmCellIncX);
 	data->advance.y = int32(glyph_metrics.gmCellIncY);
@@ -582,7 +598,7 @@ int64 os_current_timestamp()
 #endif
 }
 
-void os_copy_text_to_clipboard(string &text)
+void os_copy_text_to_clipboard(u16string &text)
 {
 #ifdef _WIN32
 	if(OpenClipboard(nullptr) == 0) return;
@@ -599,7 +615,7 @@ void os_copy_text_to_clipboard(string &text)
 #endif
 }
 
-void os_copy_text_from_clipboard(string *text)
+void os_copy_text_from_clipboard(u16string *text)
 {
 #ifdef _WIN32
 	if(IsClipboardFormatAvailable(CF_UNICODETEXT) == FALSE
@@ -630,10 +646,10 @@ void os_update_internal_timer()
 void os_update_windows()
 {
 	for(uint64 i = 0; i < windows.size; i++)
-		windows.addr[i].wnd->update();
+		windows[i].wnd->update();
 }
 
-bool os_filename_exists(string &filename)
+bool os_filename_exists(u16string &filename)
 {
 #ifdef _WIN32
 	char16 *str_win32 = create_u16sz(filename);
@@ -727,7 +743,7 @@ uint64 os_write_file(file *f, void *addr, uint64 size)
 #endif
 }
 
-bool os_delete_file(string &filename)
+bool os_delete_file(u16string &filename)
 {
 #ifdef _WIN32
 	char16 *str_win32 = create_u16sz(filename);
@@ -765,7 +781,7 @@ void os_unregister_web_server(network_server *ws)
 #ifdef _WIN32
 	ws->state = network_server_state::inactive;
 	for(uint64 i = 0; i < network_servers.size; i++)
-		if(network_servers.addr[i] == ws)
+		if(network_servers[i] == ws)
 		{
 			network_servers.remove(i);
 			return;

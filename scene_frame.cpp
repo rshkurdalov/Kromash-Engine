@@ -1,5 +1,4 @@
 #include "scene_frame.h"
-#include "ui_ext.h"
 #include "hardware.h"
 
 #pragma comment(lib, "d3d11.lib")
@@ -10,29 +9,6 @@
 #include "timer.h"
 
 using namespace DirectX;
-
-float real_to_float(real value)
-{
-	return float(value.integer) + float(value.fraction) / float(max_real_fraction);
-}
-
-XMVECTOR real_vector_to_xmvector(vector<real, 4> value)
-{
-	return XMVectorSet(
-		real_to_float(value.x),
-		real_to_float(value.y),
-		real_to_float(value.z),
-		real_to_float(value.w));
-}
-
-XMMATRIX real_matrix_to_xmmatrix(matrix<real, 4, 4> value)
-{
-	return XMMatrixSet(
-		real_to_float(value.m[0][0]), real_to_float(value.m[0][1]), real_to_float(value.m[0][2]), real_to_float(value.m[0][3]),
-		real_to_float(value.m[1][0]), real_to_float(value.m[1][1]), real_to_float(value.m[1][2]), real_to_float(value.m[1][3]),
-		real_to_float(value.m[2][0]), real_to_float(value.m[2][1]), real_to_float(value.m[2][2]), real_to_float(value.m[2][3]),
-		real_to_float(value.m[3][0]), real_to_float(value.m[3][1]), real_to_float(value.m[3][2]), real_to_float(value.m[3][3]));
-}
 
 scene::scene()
 {
@@ -445,7 +421,9 @@ void scene::render(bitmap &upper_layer)
 bool scene_frame_hit_test(indefinite<frame> fm, vector<int32, 2> point)
 {
 	scene_frame *sf = (scene_frame *)(fm.addr);
-	return utility<frame>().rectangular_hit_test(&sf->fm, point);
+	return rectangle<int32>(
+		vector<int32, 2>(sf->fm.x, sf->fm.y),
+		vector<int32, 2>(sf->fm.width, sf->fm.height)).hit_test(point);
 }
 
 void scene_frame_subframes(indefinite<frame> fm, array<handleable<frame>> *frames)
@@ -490,14 +468,14 @@ void scene_frame_key_release(indefinite<frame> fm)
 		rd->move_left = false;
 }
 
-void scene_frame_render(indefinite<frame> fm, vector<int32, 2> point, bitmap_processor *bp, bitmap *bmp)
+void scene_frame_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
 {
 	scene_frame *sf = (scene_frame *)(fm.addr);
 	sf->layout.core->x = sf->fm.x;
 	sf->layout.core->y = sf->fm.y;
 	sf->layout.core->width = sf->fm.width;
 	sf->layout.core->height = sf->fm.height;
-	sf->layout.core->render(sf->layout.object, point, bp, bmp);
+	sf->layout.core->render(sf->layout.object, bp, bmp);
 	sf->sc->render(*bmp);
 }
 
@@ -506,7 +484,7 @@ scene_frame::scene_frame()
 	fm.hit_test = scene_frame_hit_test;
 	fm.subframes = scene_frame_subframes;
 	fm.render = scene_frame_render;
-	fm.mouse_move = scene_frame_mouse_move;
-	fm.key_press = scene_frame_key_press;
-	fm.key_release = scene_frame_key_release;
+	fm.mouse_move.callbacks.push(scene_frame_mouse_move);
+	fm.key_press.callbacks.push(scene_frame_key_press);
+	fm.key_release.callbacks.push(scene_frame_key_release);
 }

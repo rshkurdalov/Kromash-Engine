@@ -1,13 +1,13 @@
-#include "frame_templates.h"
+#include "grid_layout.h"
 
-void grid_layout_data::attach(handleable<frame> fm)
+void grid_layout_data::initialize(handleable<frame> fm)
 {
 	growth_row = uint64(-1);
 	growth_column = uint64(-1);
 	xscroll.data.vertical = false;
 }
 
-void grid_layout_data::insert_row(uint32 insert_idx, adaptive_size<real> size)
+void grid_layout_data::insert_row(uint32 insert_idx, adaptive_size<float32> size)
 {
 	rows_size.insert(insert_idx, size);
 	frames.insert_rows(insert_idx, 1);
@@ -21,7 +21,7 @@ void grid_layout_data::remove_row(uint32 remove_idx)
 	frames.remove_rows(remove_idx, 1);
 }
 
-void grid_layout_data::insert_column(uint32 insert_idx, adaptive_size<real> size)
+void grid_layout_data::insert_column(uint32 insert_idx, adaptive_size<float32> size)
 {
 	columns_size.insert(insert_idx, size);
 	frames.insert_columns(insert_idx, 1);
@@ -62,10 +62,10 @@ struct grid_layout_metrics
 		content_height = 0;
 		rows_size.insert_default(0, gl->rows_size.size);
 		for(uint64 i = 0; i < rows_size.size; i++)
-			rows_size.addr[i] = 0;
+			rows_size[i] = 0;
 		columns_size.insert_default(0, gl->columns_size.size);
 		for(uint64 i = 0; i < columns_size.size; i++)
-			columns_size.addr[i] = 0;
+			columns_size[i] = 0;
 	}
 };
 
@@ -74,11 +74,11 @@ void grid_layout_evaluate_metrics(grid_layout_metrics *metrics)
 	grid_layout_frame *glf;
 	vector<uint32, 2> size;
 	for(uint64 i = 0; i < metrics->rows_size.size; i++)
-		if(metrics->gl->rows_size.addr[i].type != adaptive_size_type::autosize)
-			metrics->rows_size.addr[i] = utility<frame>().resolve_size(metrics->gl->rows_size.addr[i], metrics->viewport_height);
+		if(metrics->gl->rows_size[i].type != adaptive_size_type::autosize)
+			metrics->rows_size[i] = uint32(metrics->gl->rows_size[i].resolve(float32(metrics->viewport_height)));
 	for(uint64 j = 0; j < metrics->columns_size.size; j++)
-		if(metrics->gl->columns_size.addr[j].type != adaptive_size_type::autosize)
-			metrics->columns_size.addr[j] = utility<frame>().resolve_size(metrics->gl->columns_size.addr[j], metrics->viewport_width);
+		if(metrics->gl->columns_size[j].type != adaptive_size_type::autosize)
+			metrics->columns_size[j] = uint32(metrics->gl->columns_size[j].resolve(float32(metrics->viewport_width)));
 	for(uint64 i = 0; i < metrics->gl->frames.rows; i++)
 	{
 		if(i == metrics->gl->growth_row) continue;
@@ -87,8 +87,8 @@ void grid_layout_evaluate_metrics(grid_layout_metrics *metrics)
 			if(j == metrics->gl->growth_column) continue;
 			glf = &metrics->gl->frames.at(i, j);
 			if(glf->fm.object.addr == nullptr) continue;
-			if(metrics->gl->rows_size.addr[i].type == adaptive_size_type::autosize
-				&& metrics->gl->columns_size.addr[j].type == adaptive_size_type::autosize)
+			if(metrics->gl->rows_size[i].type == adaptive_size_type::autosize
+				&& metrics->gl->columns_size[j].type == adaptive_size_type::autosize)
 			{
 				if(glf->fm.core->width_desc.type != adaptive_size_type::relative)
 				{
@@ -96,41 +96,41 @@ void grid_layout_evaluate_metrics(grid_layout_metrics *metrics)
 					size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
 				}
 				else size.x = glf->fm.core->max_width;
-				size.x -= utility<frame>().resolve_size(glf->fm.core->margin_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_right, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_right, size.x);
+				size.x -= uint32(glf->fm.core->margin_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->margin_right.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_right.resolve(float32(size.x)));
 				if(glf->fm.core->height_desc.type != adaptive_size_type::relative)
 				{
 					size.y = uint32(glf->fm.core->height_desc.value);
 					size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
 				}
 				else size.y = glf->fm.core->max_height;
-				size.y -= utility<frame>().resolve_size(glf->fm.core->margin_bottom, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_bottom, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_top, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_top, size.x);
+				size.y -= uint32(glf->fm.core->margin_bottom.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_bottom.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->margin_top.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_top.resolve(float32(size.x)));
 				size = glf->fm.core->content_size(glf->fm.core, size.x, size.y);
-				size = utility<frame>().content_size_to_frame_size(glf->fm.core, size.x, size.y);
+				size = glf->fm.core->content_size_to_frame_size(size.x, size.y);
 				if(glf->fm.core->width_desc.type == adaptive_size_type::absolute)
 					size.x = uint32(glf->fm.core->width_desc.value);
 				if(glf->fm.core->height_desc.type == adaptive_size_type::absolute)
 					size.y = uint32(glf->fm.core->height_desc.value);
 				size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
 				size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
-				metrics->rows_size.addr[i] = max(metrics->rows_size.addr[i], size.y);
-				metrics->columns_size.addr[j] = max(metrics->columns_size.addr[j], size.x);
+				metrics->rows_size[i] = max(metrics->rows_size[i], size.y);
+				metrics->columns_size[j] = max(metrics->columns_size[j], size.x);
 			}
-			else if(metrics->gl->rows_size.addr[i].type == adaptive_size_type::autosize)
+			else if(metrics->gl->rows_size[i].type == adaptive_size_type::autosize)
 			{
 				if(glf->fm.core->width_desc.type == adaptive_size_type::autosize)
 					size.x = glf->fm.core->max_width;
-				else size.x = utility<frame>().resolve_size(glf->fm.core->width_desc, metrics->columns_size.addr[j]);
+				else size.x = uint32(glf->fm.core->width_desc.resolve(float32(metrics->columns_size[j])));
 				size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
-				size.x -= utility<frame>().resolve_size(glf->fm.core->margin_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_right, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_right, size.x);
+				size.x -= uint32(glf->fm.core->margin_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->margin_right.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_right.resolve(float32(size.x)));
 				if(glf->fm.core->height_desc.type == adaptive_size_type::relative)
 					size.y = glf->fm.core->max_height;
 				else
@@ -138,30 +138,30 @@ void grid_layout_evaluate_metrics(grid_layout_metrics *metrics)
 					size.y = uint32(glf->fm.core->height_desc.value);
 					size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
 				}
-				size.y -= utility<frame>().resolve_size(glf->fm.core->margin_bottom, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_bottom, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_top, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_top, size.y);
+				size.y -= uint32(glf->fm.core->margin_bottom.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->padding_bottom.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->margin_top.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->padding_top.resolve(float32(size.y)));
 				size = glf->fm.core->content_size(glf->fm.core, size.x, size.y);
-				size = utility<frame>().content_size_to_frame_size(glf->fm.core, size.x, size.y);
+				size = glf->fm.core->content_size_to_frame_size(size.x, size.y);
 				if(glf->fm.core->width_desc.type != adaptive_size_type::autosize)
-					size.x = utility<frame>().resolve_size(glf->fm.core->width_desc, metrics->columns_size.addr[j]);
+					size.x = uint32(glf->fm.core->width_desc.resolve(float32(metrics->columns_size[j])));
 				if(glf->fm.core->height_desc.type == adaptive_size_type::absolute)
 					size.y = uint32(glf->fm.core->height_desc.value);
 				size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
 				size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
-				metrics->rows_size.addr[i] = max(metrics->rows_size.addr[i], size.y);
+				metrics->rows_size[i] = max(metrics->rows_size[i], size.y);
 			}
-			else if(metrics->gl->columns_size.addr[j].type == adaptive_size_type::autosize)
+			else if(metrics->gl->columns_size[j].type == adaptive_size_type::autosize)
 			{
 				if(glf->fm.core->height_desc.type == adaptive_size_type::autosize)
 					size.y = glf->fm.core->max_height;
-				else size.y = utility<frame>().resolve_size(glf->fm.core->height_desc, metrics->rows_size.addr[i]);
+				else size.y = uint32(glf->fm.core->height_desc.resolve(float32(metrics->rows_size[i])));
 				size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
-				size.y -= utility<frame>().resolve_size(glf->fm.core->margin_bottom, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_bottom, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_top, size.y)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_top, size.y);
+				size.y -= uint32(glf->fm.core->margin_bottom.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->padding_bottom.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->margin_top.resolve(float32(size.y)))
+					+ uint32(glf->fm.core->padding_top.resolve(float32(size.y)));
 				if(glf->fm.core->width_desc.type == adaptive_size_type::relative)
 					size.x = glf->fm.core->max_width;
 				else
@@ -169,45 +169,45 @@ void grid_layout_evaluate_metrics(grid_layout_metrics *metrics)
 					size.x = uint32(glf->fm.core->width_desc.value);
 					size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
 				}
-				size.x -= utility<frame>().resolve_size(glf->fm.core->margin_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_left, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->margin_right, size.x)
-					+ utility<frame>().resolve_size(glf->fm.core->padding_right, size.x);
+				size.x -= uint32(glf->fm.core->margin_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_left.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->margin_right.resolve(float32(size.x)))
+					+ uint32(glf->fm.core->padding_right.resolve(float32(size.x)));
 				size = glf->fm.core->content_size(glf->fm.core, size.x, size.y);
-				size = utility<frame>().content_size_to_frame_size(glf->fm.core, size.x, size.y);
+				size = glf->fm.core->content_size_to_frame_size(size.x, size.y);
 				if(glf->fm.core->height_desc.type != adaptive_size_type::autosize)
-					size.y = utility<frame>().resolve_size(glf->fm.core->height_desc, metrics->rows_size.addr[i]);
+					size.y = uint32(glf->fm.core->height_desc.resolve(float32(metrics->rows_size[i])));
 				if(glf->fm.core->width_desc.type == adaptive_size_type::absolute)
 					size.x = uint32(glf->fm.core->width_desc.value);
 				size.x = min(max(glf->fm.core->min_width, size.x), glf->fm.core->max_width);
 				size.y = min(max(glf->fm.core->min_height, size.y), glf->fm.core->max_height);
-				metrics->columns_size.addr[j] = max(metrics->columns_size.addr[j], size.x);
+				metrics->columns_size[j] = max(metrics->columns_size[j], size.x);
 			}
 		}
 	}
 	for(uint64 i = 0; i < metrics->rows_size.size; i++)
 		if(i != metrics->gl->growth_row)
-			metrics->content_height += metrics->rows_size.addr[i];
+			metrics->content_height += metrics->rows_size[i];
 	for(uint64 j = 0; j < metrics->columns_size.size; j++)
 		if(j != metrics->gl->growth_column)
-			metrics->content_width += metrics->columns_size.addr[j];
+			metrics->content_width += metrics->columns_size[j];
 	if(metrics->gl->growth_row != uint64(-1))
 	{
 		if(metrics->content_height >= metrics->viewport_height)
-			metrics->rows_size.addr[metrics->gl->growth_row] = 0;
+			metrics->rows_size[metrics->gl->growth_row] = 0;
 		else
 		{
-			metrics->rows_size.addr[metrics->gl->growth_row] = uint32(metrics->viewport_height - metrics->content_height);
+			metrics->rows_size[metrics->gl->growth_row] = uint32(metrics->viewport_height - metrics->content_height);
 			metrics->content_height = uint32(metrics->viewport_height);
 		}
 	}
 	if(metrics->gl->growth_column != uint64(-1))
 	{
 		if(metrics->content_width >= metrics->viewport_width)
-			metrics->columns_size.addr[metrics->gl->growth_column] = 0;
+			metrics->columns_size[metrics->gl->growth_column] = 0;
 		else
 		{
-			metrics->columns_size.addr[metrics->gl->growth_column] = uint32(metrics->viewport_width - metrics->content_width);
+			metrics->columns_size[metrics->gl->growth_column] = uint32(metrics->viewport_width - metrics->content_width);
 			metrics->content_width = uint32(metrics->viewport_width);
 		}
 	}
@@ -226,13 +226,13 @@ vector<uint32, 2> grid_layout_data::content_size(handleable<frame> fm, uint32 vi
 
 void grid_layout_data::update_layout(handleable<frame> fm)
 {
-	rectangle<int32> viewport = utility<frame>().frame_viewport(fm.core);
-	rectangle<int32> content_viewport = utility<frame>().frame_content_viewport(fm.core);
+	rectangle<int32> viewport = fm.core->frame_viewport();
+	rectangle<int32> content_viewport = fm.core->frame_content_viewport();
 	grid_layout_metrics metrics(fm, this, content_viewport.extent.x, content_viewport.extent.y);
 	grid_layout_evaluate_metrics(&metrics);
 	bool reevaluate = false;
-	xscroll.fm.height = xscroll.fm.height_desc.value.integer;
-	yscroll.fm.width = yscroll.fm.width_desc.value.integer;
+	xscroll.fm.height = uint32(xscroll.fm.height_desc.value);
+	yscroll.fm.width = uint32(yscroll.fm.width_desc.value);
 	if(metrics.content_width > metrics.viewport_width)
 	{
 		reevaluate = true;
@@ -252,9 +252,9 @@ void grid_layout_data::update_layout(handleable<frame> fm)
 		metrics.content_width = 0;
 		metrics.content_height = 0;
 		for(uint64 i = 0; i < metrics.rows_size.size; i++)
-			metrics.rows_size.addr[i] = 0;
+			metrics.rows_size[i] = 0;
 		for(uint64 i = 0; i < metrics.columns_size.size; i++)
-			metrics.columns_size.addr[i] = 0;
+			metrics.columns_size[i] = 0;
 		grid_layout_evaluate_metrics(&metrics);
 		xscroll.data.content_size = uint32(metrics.content_width);
 		xscroll.data.viewport_size = uint32(metrics.viewport_width);
@@ -283,30 +283,29 @@ void grid_layout_data::update_layout(handleable<frame> fm)
 			glf = &frames.at(i, j);
 			if(glf->fm.object.addr != nullptr)
 			{
-				glf->fm.core->width = utility<frame>().resolve_size(glf->fm.core->width_desc, metrics.columns_size.addr[j]);
-				glf->fm.core->height = utility<frame>().resolve_size(glf->fm.core->height_desc, metrics.rows_size.addr[i]);
+				glf->fm.core->width = uint32(glf->fm.core->width_desc.resolve(float32(metrics.columns_size[j])));
+				glf->fm.core->height = uint32(glf->fm.core->height_desc.resolve(float32(metrics.rows_size[i])));
 				if(glf->halign == horizontal_align::left)
 					glf->fm.core->x = position.x;
 				else if(glf->halign == horizontal_align::center)
-					glf->fm.core->x = position.x + (metrics.columns_size.addr[j] - glf->fm.core->width) / 2;
-				else glf->fm.core->x = position.x + metrics.columns_size.addr[j] - glf->fm.core->width;
+					glf->fm.core->x = position.x + (metrics.columns_size[j] - glf->fm.core->width) / 2;
+				else glf->fm.core->x = position.x + metrics.columns_size[j] - glf->fm.core->width;
 				if(glf->valign == vertical_align::bottom)
 					glf->fm.core->y = position.y;
 				else if(glf->valign == vertical_align::center)
-					glf->fm.core->y = position.y + (metrics.rows_size.addr[i] - glf->fm.core->height) / 2;
-				else glf->fm.core->y = position.y + metrics.rows_size.addr[i] - glf->fm.core->height;
+					glf->fm.core->y = position.y + (metrics.rows_size[i] - glf->fm.core->height) / 2;
+				else glf->fm.core->y = position.y + metrics.rows_size[i] - glf->fm.core->height;
 			}
-			position.x += int32(metrics.columns_size.addr[j]);
+			position.x += int32(metrics.columns_size[j]);
 		}
 		position.x = content_viewport.position.x;
-		position.y += int32(metrics.rows_size.addr[i]);
+		position.y += int32(metrics.rows_size[i]);
 	}
 }
 
-void grid_layout_data::render(handleable<frame> fm, vector<int32, 2> point, bitmap_processor *bp, bitmap *bmp)
+void grid_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
 {
-	rectangle<int32> content_viewport = utility<frame>().frame_content_viewport(fm.core);
-	content_viewport.position -= point;
+	rectangle<int32> content_viewport = fm.core->frame_content_viewport();
 	if(!fm.core->visible
 		|| content_viewport.extent.x <= 0
 		|| content_viewport.extent.y <= 0)
@@ -326,17 +325,17 @@ void grid_layout_data::render(handleable<frame> fm, vector<int32, 2> point, bitm
 		if(frames.addr[i].fm.object.addr == nullptr) continue;
 		frames.addr[i].fm.core->x -= int32(xscroll.data.viewport_offset);
 		frames.addr[i].fm.core->y += int32(yscroll.data.viewport_offset);
-		if(frames.addr[i].fm.core->x < point.x + content_viewport.position.x + content_viewport.extent.x
+		if(frames.addr[i].fm.core->x < + content_viewport.position.x + content_viewport.extent.x
 			&& frames.addr[i].fm.core->x + int32(frames.addr[i].fm.core->width)
-				>= point.x + content_viewport.position.x
-			&& frames.addr[i].fm.core->y < point.y + content_viewport.position.y + content_viewport.extent.y
+				>= + content_viewport.position.x
+			&& frames.addr[i].fm.core->y < content_viewport.position.y + content_viewport.extent.y
 			&& frames.addr[i].fm.core->y + int32(frames.addr[i].fm.core->height)
-				>= point.y + content_viewport.position.y)
-			frames.addr[i].fm.core->render(frames.addr[i].fm.core, point, bp, bmp);
+				>= content_viewport.position.y)
+			frames.addr[i].fm.core->render(frames.addr[i].fm.core, bp, bmp);
 	}
 	bp->pop_scissor();
-	xscroll.fm.render(&xscroll.fm, point, bp, bmp);
-	yscroll.fm.render(&yscroll.fm, point, bp, bmp);
+	xscroll.fm.render(&xscroll.fm, bp, bmp);
+	yscroll.fm.render(&yscroll.fm, bp, bmp);
 }
 
 void grid_layout_data::mouse_wheel_rotate(handleable<frame> fm)
@@ -349,7 +348,9 @@ void grid_layout_data::mouse_wheel_rotate(handleable<frame> fm)
 bool grid_layout_hit_test(indefinite<frame> fm, vector<int32, 2> point)
 {
 	grid_layout *gl = (grid_layout *)(fm.addr);
-	return utility<frame>().rectangular_hit_test(&gl->fm, point);
+	return rectangle<int32>(
+		vector<int32, 2>(gl->fm.x, gl->fm.y),
+		vector<int32, 2>(gl->fm.width, gl->fm.height)).hit_test(point);
 }
 
 void grid_layout_subframes(indefinite<frame> fm, array<handleable<frame>> *frames)
@@ -364,11 +365,11 @@ vector<uint32, 2> grid_layout_content_size(indefinite<frame> fm, uint32 viewport
 	return gl->data.content_size(handleable<frame>(gl, &gl->fm), viewport_width, viewport_height);
 }
 
-void grid_layout_render(indefinite<frame> fm, vector<int32, 2> point, bitmap_processor *bp, bitmap *bmp)
+void grid_layout_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
 {
 	grid_layout *gl = (grid_layout *)(fm.addr);
-	gl->model.render(handleable<frame>(gl, &gl->fm), point, bp, bmp);
-	gl->data.render(handleable<frame>(gl, &gl->fm), point, bp, bmp);
+	gl->model.render(handleable<frame>(gl, &gl->fm), bp, bmp);
+	gl->data.render(handleable<frame>(gl, &gl->fm), bp, bmp);
 }
 
 void grid_layout_mouse_wheel_rotate(indefinite<frame> fm)
@@ -383,19 +384,7 @@ grid_layout::grid_layout()
 	fm.subframes = grid_layout_subframes;
 	fm.content_size = grid_layout_content_size;
 	fm.render = grid_layout_render;
-	fm.mouse_wheel_rotate = grid_layout_mouse_wheel_rotate;
-	data.attach(handleable<frame>(this, &fm));
-	model.attach(handleable<frame>(this, &fm));
+	fm.mouse_wheel_rotate.callbacks.push(grid_layout_mouse_wheel_rotate);
+	data.initialize(handleable<frame>(this, &fm));
+	model.initialize(handleable<frame>(this, &fm));
 }
-
-struct grid_layout_module_initializer
-{
-	grid_layout_module_initializer()
-	{
-		default_frame_callbacks()->grid_layout_hit_test = grid_layout_hit_test;
-		default_frame_callbacks()->grid_layout_content_size = grid_layout_content_size;
-		default_frame_callbacks()->grid_layout_subframes = grid_layout_subframes;
-		default_frame_callbacks()->grid_layout_render = grid_layout_render;
-		default_frame_callbacks()->grid_layout_mouse_wheel_rotate = grid_layout_mouse_wheel_rotate;
-	}
-} initializer;

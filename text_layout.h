@@ -2,7 +2,7 @@
 #include "string.h"
 #include "geometry.h"
 #include "graphics.h"
-#include "ui_types.h"
+#include "ui_base.h"
 
 struct glyph_data
 {
@@ -10,8 +10,8 @@ struct glyph_data
 	geometry_path path;
 	vector<int32, 2> advance;
 	bitmap bmp;
-	vector<real, 2> bmp_offset;
-	string font_name;
+	vector<float32, 2> bmp_offset;
+	u16string font_name;
 	uint32 size;
 	bool italic;
 	uint32 weight;
@@ -27,7 +27,7 @@ struct glyph_data
 struct glyph
 {
 	char32 code;
-	string font_name;
+	u16string font_name;
 	uint32 size;
 	bool italic;
 	uint32 weight;
@@ -49,17 +49,19 @@ struct text_layout
 	bool multiline;
 
 	text_layout();
-	void insert_text(uint64 idx, string &str, string &font, uint32 font_size);
+	void insert_text(uint64 idx, u16string &str, u16string &font, uint32 font_size);
 	void update();
 	vector<int32, 2> content_size();
 	void hit_test_position(uint64 idx, vector<int32, 2> *point, int32 *line_height);
-	void hit_test_point(vector<int32, 2> point, uint64 *idx);
+	void hit_test_point(vector<int32, 2> point, uint64 *idx, bool *is_trailing);
 	void render(
 		vector<int32, 2> point,
 		void (*render_glyph_callback)(
 			glyph &gl,
+			vector<int32, 2> tl_point,
 			vector<int32, 2> point,
 			int32 baseline,
+			int32 line_width,
 			int32 line_height,
 			uint64 idx,
 			void *data,

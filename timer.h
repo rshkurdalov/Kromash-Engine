@@ -11,8 +11,11 @@ enum struct timer_state
 
 enum struct timer_trigger_postaction
 {
+	/*Once more repeat timer action starting from last trigger_time*/
 	repeat,
+	/*Repeat timer action without calculating activation delta error*/
 	reactivate,
+	/*Dont activate timer*/
 	terminate
 };
 

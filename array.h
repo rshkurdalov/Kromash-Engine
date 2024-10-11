@@ -3,8 +3,11 @@
 
 template<typename value_type> struct array
 {
+	/*If array is empty addr is nullptr*/
 	value_type *addr;
+	/*If addr is nullptr - size must be 0*/
 	uint64 size;
+	/*If addr is nullptr - capacity must be 0*/
 	uint64 capacity;
 
 	array()
@@ -21,6 +24,7 @@ template<typename value_type> struct array
 		delete[] (byte *)addr;
 	}
 
+	/*Increase capacity by a minimum of min_value elements*/
 	void increase_capacity(uint64 min_value)
 	{
 		min_value += capacity;
@@ -37,6 +41,7 @@ template<typename value_type> struct array
 		}
 	}
 
+	/*idx must be valid array position*/
 	void insert(uint64 idx, const value_type &value)
 	{
 		if(size == capacity) increase_capacity(1);
@@ -45,6 +50,7 @@ template<typename value_type> struct array
 		size++;
 	}
 
+	/*idx must be valid array position*/
 	void insert_range(uint64 idx, const value_type *begin, const value_type *end)
 	{
 		uint64 count = end - begin;
@@ -60,6 +66,8 @@ template<typename value_type> struct array
 		}
 	}
 
+	/*Insert element and call default constructor
+	idx must be valid array position*/
 	void insert_default(uint64 idx, uint64 count)
 	{
 		if(capacity < size + count)
@@ -69,6 +77,7 @@ template<typename value_type> struct array
 		size += count;
 	}
 
+	/*Insert elements to the end of array*/
 	void push(const value_type &value)
 	{
 		if(size == capacity) increase_capacity(1);
@@ -76,6 +85,7 @@ template<typename value_type> struct array
 		size++;
 	}
 
+	/*Insert element to the end of array and call default constructor*/
 	void push_default()
 	{
 		if(size == capacity) increase_capacity(1);
@@ -83,6 +93,7 @@ template<typename value_type> struct array
 		construct(addr + size - 1);
 	}
 
+	/*idx must be valid array position*/
 	void remove(uint64 idx)
 	{
 		destroy(addr + idx);
@@ -90,6 +101,8 @@ template<typename value_type> struct array
 		size--;
 	}
 
+	/*Remove elements in [begin, end) range
+	begin, end must be valid array position values*/
 	void remove_range(uint64 begin, uint64 end)
 	{
 		destroy_range(addr + begin, addr + end);
@@ -97,18 +110,29 @@ template<typename value_type> struct array
 		size -= end - begin;
 	}
 
+	/*Remove element from the end of array
+	array must have at least 1 element*/
 	void pop()
 	{
 		destroy(addr + size - 1);
 		size--;
 	}
 
+	/*Remove scecific element from array*/
+	void remove_element(const value_type &value)
+	{
+		for(uint64 i = 0; i < size; i++)
+			if(addr[i] == value) remove(i--);
+	}
+
+	/*Removes all elements from array, but doesnt affect capacity*/
 	void clear()
 	{
 		destroy_range(addr, addr + size);
 		size = 0;
 	}
 
+	/*Removes all elements from array and resets capacity to 0*/
 	void reset()
 	{
 		if(addr == nullptr) return;
@@ -119,22 +143,31 @@ template<typename value_type> struct array
 		capacity = 0;
 	}
 
+	/*Get reference to first element of array
+	array must have at least 1 element*/
 	value_type &front()
 	{
 		return addr[0];
 	}
 
+	/*Get reference to last element of array
+	array must have at least 1 element*/
 	value_type &back()
 	{
 		return addr[size - 1];
 	}
 
+	/*Get reference to element of array by idx
+	idx must be valid array position*/
 	value_type &operator[](uint64 idx)
 	{
 		return addr[idx];
 	}
 
-	uint64 lower_bound(const key<value_type> &key_value) //!!!
+	/*Get position of lowest value that is not less than key_value
+	if such values are several - one with lowest position returns
+	array must be sorted*/
+	uint64 lower_bound(const key<value_type> &key_value)
 	{
 		if(size == 0) return 0;
 		if(key<value_type>(addr[size - 1]) < key_value) return size;
@@ -154,7 +187,10 @@ template<typename value_type> struct array
 		}
 	}
 
-	uint64 upper_bound(const key<value_type> &key_value) //!!!
+	/*Get position of highest value that is not greater than key_value
+	if such values are several - one with highest position returns
+	array must be sorted*/
+	uint64 upper_bound(const key<value_type> &key_value)
 	{
 		if(size == 0) return 0;
 		if(key_value < key<value_type>(addr[0])) return size;
@@ -174,6 +210,8 @@ template<typename value_type> struct array
 		}
 	}
 
+	/*Find position of key_value
+	array must be sorted*/
 	uint64 binary_search(const key<value_type> &key_value)
 	{
 		uint64 idx = lower_bound(key_value);
@@ -182,6 +220,8 @@ template<typename value_type> struct array
 		else return idx;
 	}
 	
+	/*Insert value to the sorted array
+	array must be sorted*/
 	void binary_insert(const value_type &value)
 	{
 		uint64 idx = upper_bound(key<value_type>(value));
@@ -189,6 +229,8 @@ template<typename value_type> struct array
 		else insert(idx + 1, value);
 	}
 
+	/*Remove value from sorted array
+	array must be sorted*/
 	void binary_remove(const key<value_type> &key_value)
 	{
 		uint64 l = lower_bound(key_value), r = l;
@@ -197,14 +239,11 @@ template<typename value_type> struct array
 	}
 };
 
-template<typename value_type> struct utility<array<value_type>>
+template<typename value_type> struct copier<array<value_type>>
 {
-	void copy(const array<value_type> &source, array<value_type> *target)
+	void operator()(array<value_type> &input, array<value_type> *output)
 	{
-		if(target->capacity < source.size)
-			target->increase_capacity(source.size - target->capacity);
-		target->size = source.size;
-		for(uint64 i = 0; i < source.size; i++)
-			utility<value_type>().copy(source.addr[i], &target->addr[i]);
+		output->clear();
+		output->insert_range(0, input.addr, input.addr + input.size);
 	}
 };
