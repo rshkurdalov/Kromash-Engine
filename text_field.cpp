@@ -315,7 +315,9 @@ void text_field_data::focus_receive(handleable<frame> fm)
 	{
 		caret_timer = new timer();
 		caret_timer->period = 0;
-		caret_timer->period << milliseconds(500);
+		nanoseconds period = 0;
+		period << milliseconds(500);
+		caret_timer->period = period.value;
 		caret_timer->callback = caret_timer_callback;
 	}
 	caret_timer->run();

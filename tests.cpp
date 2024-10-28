@@ -1,6 +1,5 @@
 #include "tests.h"
 #include "string.h"
-#include "parser.h"
 #include "vector.h"
 #include "matrix.h"
 #include "array.h"
@@ -57,13 +56,15 @@ void test_string()
 	str << U"text";
 	str << U"text";
 	str.clear();
-	str << U"abc" << -2 << U'+' << int8(42) << U'=' << uint16(40) << U"  r = " << 40.0r;
+	str << U"abc" << -2 << U'+' << int8(42) << U'=' << uint16(40) << U"  r = " << 40.12r;
 	int32 v1;
 	string_stream(U"-50", 3) >> v1;
 	uint32 v2;
 	string_stream(U"500", 3) >> v2;
 	real v3;
 	string_stream(U"-50.689", 7) >> v3;
+	str << v3;
+	v3 = -50.689r;
 	string_stream(U"50.08", 5) >> v3;
 
 	char32 str2[] = U"15 89.6 -8 - ab -9. 874yt-14.0";
@@ -121,7 +122,7 @@ void test_matrix()
 	};
 	matrix<real, 3, 2> mt(mtValues);
 	vector<real, 3> vt(2.5r, 5.0r, 50.0r);
-	matrix<real, 1, 2> a = vt * mt;
+	vector<real, 2> a = vt * mt;
 	matrix<real, 2, 1> b;
 	b.m[0][0] = 1.0r;
 	b.m[1][0] = 5.0r;
@@ -149,10 +150,10 @@ void test_matrix()
 	matrix<real, 3, 3> tr(tr_values);
 	matrix<real, 3, 3> itr = tr;
 	invert_matrix(&itr);
-	matrix<real, 1, 3> mul = vector<real, 3>(1.0r, 1.0r, 1.0r) * tr;
-	vector<real, 2> p = vector<real, 2>(mul.m[0][0], mul.m[0][1]);
+	vector<real, 3> mul = vector<real, 3>(1.0r, 1.0r, 1.0r) * tr;
+	vector<real, 2> p = vector<real, 2>(mul.x, mul.y);
 	mul = vector<real, 3>(p.x, p.y, 1.0r) * itr;
-	p = vector<real, 2>(mul.m[0][0], mul.m[0][1]);
+	p = vector<real, 2>(mul.x, mul.y);
 }
 
 void test_real()
@@ -182,7 +183,7 @@ void test_real()
 #include "flow_layout.h"
 #include "push_button.h"
 #include "grid_layout.h"
-#include "scene_frame.h"
+#include "world_frame.h"
 
 void test_ui()
 {
@@ -346,31 +347,31 @@ void test_ui()
 
 	tf->fm.width_desc = 0.5uirel;
 	tf->fm.height_desc = 0.5uirel;
-	gl->data.frames.at(0, 0) = grid_layout_frame(handleable<frame>(tf, &tf->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(0, 0) = grid_layout_frame(handleable<frame>(tf, &tf->fm), horizontal_align::center, vertical_align::center);
 
 	tf1->fm.width_desc = 1.0uirel;
 	tf1->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(0, 1) = grid_layout_frame(handleable<frame>(tf1, &tf1->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(0, 1) = grid_layout_frame(handleable<frame>(tf1, &tf1->fm), horizontal_align::center, vertical_align::center);
 
 	tf2->fm.width_desc = 1.0uirel;
 	tf2->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(0, 2) = grid_layout_frame(handleable<frame>(tf2, &tf2->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(0, 2) = grid_layout_frame(handleable<frame>(tf2, &tf2->fm), horizontal_align::center, vertical_align::center);
 
 	tf3->fm.width_desc = 1.0uirel;
 	tf3->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(1, 0) = grid_layout_frame(handleable<frame>(tf3, &tf3->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(1, 0) = grid_layout_frame(handleable<frame>(tf3, &tf3->fm), horizontal_align::center, vertical_align::center);
 
 	tf4->fm.width_desc = 1.0uirel;
 	tf4->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(1, 1) = grid_layout_frame(handleable<frame>(tf4, &tf4->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(1, 1) = grid_layout_frame(handleable<frame>(tf4, &tf4->fm), horizontal_align::center, vertical_align::center);
 
 	tf5->fm.width_desc = 1.0uirel;
 	tf5->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(1, 2) = grid_layout_frame(handleable<frame>(tf5, &tf5->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(1, 2) = grid_layout_frame(handleable<frame>(tf5, &tf5->fm), horizontal_align::center, vertical_align::center);
 
 	tf6->fm.width_desc = 1.0uirel;
 	tf6->fm.height_desc = 1.0uirel;
-	gl->data.frames.at(2, 0) = grid_layout_frame(handleable<frame>(tf6, &tf6->fm), horizontal_align::center, vertical_align::center);
+	//gl->data.frames.at(2, 0) = grid_layout_frame(handleable<frame>(tf6, &tf6->fm), horizontal_align::center, vertical_align::center);
 
 	/*tf7->fm.width_desc = 1.0uirel;
 	tf7->fm.height_desc = 1.0uirel;
@@ -381,14 +382,18 @@ void test_ui()
 	gl->data.frames.at(2, 2) = grid_layout_frame(handleable<frame>(tf8, &tf8->fm), horizontal_align::center, vertical_align::center);*/
 
 	window *wnd = new window();
-	scene_frame *sf = new scene_frame();
-	sf->sc = new scene();
-	sf->sc->set_window(wnd->handler);
-	sf->layout = handleable<frame>(gl, &gl->fm);
-	sf->fm.focusable = true;
+	world_frame *wf = new world_frame();
+	wf->wld.wnd = wnd;
+	wf->wld.initialize_common_resources();
+	wf->wld.initialize_ui_resources();
+	wf->wld.initialize_outline_resources();
+	wf->wld.initialize_sky_resources();
+	wf->wld.initialize_scene();
+	wf->wld.layout = handleable<frame>(gl, &gl->fm);
+	wf->fm.focusable = true;
 	gl->fm.return_mouse_move = true;
 	gl->fm.return_mouse_click = true;
-	wnd->layout = handleable<frame>(gl, &gl->fm);
+	wnd->layout = handleable<frame>(wf, &wf->fm);
 	wnd->open();
 	wnd->update();
 }
@@ -556,7 +561,21 @@ void test_web_server()
 	ws->run();*/
 }
 
+#include "json.h"
+
 void test_json()
 {
-	
+	u16string filename1 = u"A:\\Steam\\fossilize_engine_filters.json";
+	file f;
+	f.filename << filename1;
+	f.open();
+	u8string str;
+	str.insert_default(0, f.size / sizeof(char8));
+	f.read(f.size / sizeof(char8) * sizeof(char8), str.addr);
+	f.close();
+	json<char8> j;
+	json_parse_result result = j.load(str);
+
+	u8string json_str;
+	j.stringify(&json_str);
 }

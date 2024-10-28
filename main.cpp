@@ -22,7 +22,7 @@ int __stdcall wWinMain(
 	//test_file();
 	//test_fileset();
 	//test_web_server();
-	//test_json();
+	test_json();
 
 	os_message_loop();
 

@@ -4,6 +4,8 @@
 #include "vector.h"
 #include "matrix.h"
 
+const float32 pi = 3.141592741f;
+
 template<uint32 extent>
 float32 vector_dot(vector<float32, extent> a, vector<float32, extent> b)
 {
@@ -17,13 +19,13 @@ float32 vector_length(vector<float32, extent> v)
 }
 
 template<uint32 extent>
-vector<float32, 2> vector_normal(vector<float32, extent> v)
+vector<float32, extent> vector_normal(vector<float32, extent> v)
 {
 	return v /= vector_length(v);
 }
 
 template<uint32 extent>
-vector<float32, 2> vector_cross(vector<float32, extent> a, vector<float32, extent> b)
+vector<float32, extent> vector_cross(vector<float32, extent> a, vector<float32, extent> b)
 {
 	if constexpr(extent == 2)
 		return vector<float32, 2>(

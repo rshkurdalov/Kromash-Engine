@@ -23,6 +23,11 @@ template<typename value_type, uint32 rows, uint32 columns> struct matrix
 		coherent_run<rows * columns>([right](value_type &value) -> void { value = right; }, *m);
 		return *this;
 	}
+
+	value_type *operator[](uint64 idx)
+	{
+		return m[idx];
+	}
 };
 
 template<typename value_type, uint32 rows, uint32 columns>
@@ -106,16 +111,31 @@ matrix<value_type, rows, columns> operator*(
 }
 
 template<typename value_type, uint32 rows, uint32 columns>
-matrix<value_type, 1, columns> operator*(
+vector<value_type, columns> operator*(
 	vector<value_type, rows> left,
 	matrix<value_type, rows, columns> right)
 {
-	matrix<value_type, 1, columns> result;
+	vector<value_type, columns> result;
 	for(uint32 i = 0; i < columns; i++)
 	{
-		result.m[0][i] = static_cast<value_type>(0);
+		result.coord[i] = static_cast<value_type>(0);
 		for(uint32 j = 0; j < rows; j++)
-			result.m[0][i] += left.coord[j] * right.m[j][i];
+			result.coord[i] += left.coord[j] * right.m[j][i];
+	}
+	return result;
+}
+
+template<typename value_type, uint32 rows, uint32 columns>
+vector<value_type, columns> operator*(
+	matrix<value_type, rows, columns> left,
+	vector<value_type, columns> right)
+{
+	vector<value_type, rows> result;
+	for(uint32 i = 0; i < rows; i++)
+	{
+		result.coord[i] = static_cast<value_type>(0);
+		for(uint32 j = 0; j < columns; j++)
+			result.coord[i] += left.m[i][j] * right.coord[j];
 	}
 	return result;
 }

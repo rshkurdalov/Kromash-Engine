@@ -14,6 +14,7 @@ typedef char16_t char16;
 typedef char32_t char32;
 typedef wchar_t wchar;
 typedef unsigned char byte;
+typedef int64 timestamp;
 typedef float float32;
 typedef double float64;
 
@@ -57,3 +58,6 @@ template<typename base_type> struct handleable
 	handleable(void *object, base_type *core)
 		: object(object), core(core) {}
 };
+
+constexpr uint64 not_found = uint64(-1);
+constexpr uint64 not_exists = uint64(-1);

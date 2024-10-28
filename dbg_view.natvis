@@ -12,9 +12,10 @@
     </Expand>
   </Type>
 
-  <Type Name="string">
-    <DisplayString>{addr, [size]s32}</DisplayString>
+  <Type Name="string&lt;*&gt;">
+    <DisplayString>{addr, [size]}</DisplayString>
     <Expand>
+      <Item Name="addr">addr</Item>
       <Item Name="size">size</Item>
       <Item Name="capacity">capacity</Item>
       <ArrayItems>

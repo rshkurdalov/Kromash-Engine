@@ -119,8 +119,8 @@ alpha_color bitmap_processor::point_color(uint32 x, uint32 y)
 	}
 	else if(br.type == brush_type::bitmap)
 	{
-		matrix<float32, 1, 3> mp = vector<float32, 3>(float32(x) + 0.5f, float32(y) + 0.5f, 1.0f) * br.reverse_transform;
-		vector<float32, 2> p = vector<float32, 2>(mp.m[0][0], mp.m[0][1]);
+		vector<float32, 3> mp = vector<float32, 3>(float32(x) + 0.5f, float32(y) + 0.5f, 1.0f) * br.reverse_transform;
+		vector<float32, 2> p = vector<float32, 2>(mp.x, mp.y);
 		int32 bx = int32(round(p.x)), by = int32(round(p.y));
 		if(bx < 0 || bx >= int32(br.bitmap_addr->width) || by < 0 || by >= int32(br.bitmap_addr->height))
 			return alpha_color(0, 0, 0, 0);
@@ -356,7 +356,7 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 	vector<float32, 2> v, v1, v2, v3;
 	geometry_path transformed_path;
 	matrix<float32, 3, 3> elliptic_arc_transform;
-	matrix<float32, 1, 3> p;
+	vector<float32, 3> p;
 	vector<float32, 2> p1, p2, p3, p4;
 	if(path.data.size == 0) return;
 	transformed_path.data.increase_capacity(2 * path.data.size);
@@ -365,22 +365,22 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 		if(path.data[i].type == geometry_path_unit::move)
 		{
 			p = vector<float32, 3>(path.data[i].p1.x, path.data[i].p1.y, 1.0f) * transform;
-			p2 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+			p2 = vector<float32, 2>(p.x, p.y);
 			transformed_path.move(p2);
 		}
 		else if(path.data[i].type == geometry_path_unit::line)
 		{
 			p = vector<float32, 3>(path.data[i].p1.x, path.data[i].p1.y, 1.0f) * transform;
-			p2 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+			p2 = vector<float32, 2>(p.x, p.y);
 			if(transformed_path.data.size != 0 && transformed_path.data[transformed_path.data.size - 1].p1 != p2)
 				transformed_path.push_line(p2);
 		}
 		else if(path.data[i].type == geometry_path_unit::quadratic_arc)
 		{
 			p = vector<float32, 3>(path.data[i].p1.x, path.data[i].p1.y, 1.0f) * transform;
-			p2 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+			p2 = vector<float32, 2>(p.x, p.y);
 			p = vector<float32, 3>(path.data[i].p2.x, path.data[i].p2.y, 1.0f) * transform;
-			p3 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+			p3 = vector<float32, 2>(p.x, p.y);
 			ts = 1.0f / max(
 				max(p1.x, p2.x, p3.x) - min(p1.x, p2.x, p3.x),
 				max(p1.y, p2.y, p3.y) - min(p1.y, p2.y, p3.y));
@@ -398,7 +398,7 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 		else
 		{
 			p = vector<float32, 3>(path.data[i].p1.x, path.data[i].p1.y, 1.0f) * transform;
-			p2 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+			p2 = vector<float32, 2>(p.x, p.y);
 			ts = 1.0f / (2.0f * 3.14f
 				* sqrt(0.5f * (path.data[i].rx * path.data[i].rx + path.data[i].ry * path.data[i].ry)));
 			tm = path.data[i].end_angle - ts;
@@ -409,7 +409,7 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 			{
 				p4 = elliptic_arc_point(path.data[i].p2, path.data[i].rx, path.data[i].ry, t);
 				p = vector<float32, 3>(p4.x, p4.y, 1.0f) * elliptic_arc_transform;
-				p4 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+				p4 = vector<float32, 2>(p.x, p.y);
 				if(transformed_path.data.size != 0 && transformed_path.data[transformed_path.data.size - 1].p1 != p4)
 					transformed_path.push_line(p4);
 			}

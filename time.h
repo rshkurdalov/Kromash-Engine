@@ -99,4 +99,4 @@ days &operator<<(days &d, milliseconds ms);
 days &operator<<(days &d, seconds s);
 days &operator<<(days &d, minutes min);
 days &operator<<(days &d, hours h);
-nanoseconds now();
+timestamp now();

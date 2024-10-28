@@ -1,5 +1,4 @@
 #include "network.h"
-#include "parser.h"
 #include "os_api.h"
 
 bool http_request::setup(const char32 *source)

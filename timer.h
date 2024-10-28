@@ -22,9 +22,9 @@ enum struct timer_trigger_postaction
 struct timer
 {
 	timer_state state;
-	nanoseconds trigger_time;
-	nanoseconds pause_hold;
-	nanoseconds period;
+	timestamp trigger_time;
+	timestamp pause_hold;
+	timestamp period;
 	timer_trigger_postaction (*callback)(void *data);
 	void *data;
 
@@ -33,7 +33,7 @@ struct timer
 	void run();
 	void pause();
 	void reset();
-	nanoseconds remaining_time();
+	timestamp remaining_time();
 };
 
 template<> struct key<timer *>
@@ -47,8 +47,8 @@ template<> struct key<timer *>
 
 	bool operator<(const key &value) const
 	{
-		return key_value->trigger_time.value < value.key_value->trigger_time.value
-			|| key_value->trigger_time.value == value.key_value->trigger_time.value
+		return key_value->trigger_time < value.key_value->trigger_time
+			|| key_value->trigger_time == value.key_value->trigger_time
 			&& key_value < value.key_value;
 	}
 };

@@ -17,7 +17,7 @@ void os_message_loop();
 void os_window_render_buffer(window *wnd, void **bits);
 void os_render_window(window *wnd);
 bool os_load_glyph(glyph_data *data);
-int64 os_current_timestamp();
+timestamp os_current_timestamp();
 void os_copy_text_to_clipboard(u16string &text);
 void os_copy_text_from_clipboard(u16string *text);
 void os_update_internal_timer();

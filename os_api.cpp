@@ -3,7 +3,6 @@
 #include "array.h"
 #include "hardware.h"
 #include "timer.h"
-#include "external_data.h"
 
 #ifdef _WIN32
 #ifndef WIN32_LEAN_AND_MEAN
@@ -56,23 +55,23 @@ void __stdcall timer_proc_win32(HWND hwnd, UINT msg, UINT_PTR id, DWORD sys_time
 {
 	set_node<timer *> *node;
 	timer *triggered_timer;
-	nanoseconds time = now();
+	timestamp time = now();
 	timer_trigger_postaction postaction;
 	while(true)
 	{
 		node = timers()->begin();
-		if(node == nullptr || node->value->trigger_time.value > time.value) break;
+		if(node == nullptr || node->value->trigger_time > time) break;
 		triggered_timer = node->value;
 		postaction = triggered_timer->callback(triggered_timer->data);
 		timers()->remove(key<timer *>(triggered_timer));
 		if(postaction == timer_trigger_postaction::repeat)
 		{
-			triggered_timer->trigger_time.value += triggered_timer->period.value;
+			triggered_timer->trigger_time += triggered_timer->period;
 			timers()->insert(triggered_timer);
 		}
 		else if(postaction == timer_trigger_postaction::reactivate)
 		{
-			triggered_timer->trigger_time = time.value + triggered_timer->period.value;
+			triggered_timer->trigger_time = time + triggered_timer->period;
 			timers()->insert(triggered_timer);
 		}
 		else triggered_timer->state = timer_state::inactive;
@@ -185,6 +184,11 @@ LRESULT CALLBACK wnd_proc_win32(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lPara
 			break;
 		}
 		case WM_MOVE:
+		{
+			wnd->update();
+			break;
+		}
+		case WM_PAINT:
 		{
 			wnd->update();
 			break;
@@ -379,7 +383,7 @@ void os_message_loop()
 			closesocket(client);
 		}*/
 
-		Sleep(5);
+		//Sleep(5);
 	}
 #endif
 }
@@ -588,13 +592,13 @@ bool os_load_glyph(glyph_data *data)
 #endif
 }
 
-int64 os_current_timestamp()
+timestamp os_current_timestamp()
 {
 #ifdef _WIN32
 	int64 freq, counter;
 	QueryPerformanceFrequency((LARGE_INTEGER *)(&freq));
 	QueryPerformanceCounter((LARGE_INTEGER *)(&counter));
-	return (counter / freq) * 1000000000 + (counter % freq) * 1000000000 / freq;
+	return timestamp((counter / freq) * 1000000000 + (counter % freq) * 1000000000 / freq);
 #endif
 }
 
@@ -637,7 +641,7 @@ void os_update_internal_timer()
 #ifdef _WIN32
 	if(timers()->size == 0) return;
 	milliseconds ms = 0;
-	ms << nanoseconds(timers()->begin()->value->trigger_time.value - now().value);
+	ms << nanoseconds(timers()->begin()->value->trigger_time - now());
 	if(ms.value < 0) ms.value = 0;
 	timer_id_win32 = SetTimer(NULL, timer_id_win32, (UINT)ms.value, timer_proc_win32);
 #endif
@@ -646,7 +650,7 @@ void os_update_internal_timer()
 void os_update_windows()
 {
 	for(uint64 i = 0; i < windows.size; i++)
-		windows[i].wnd->update();
+		SendMessage(HWND(windows[i].hwnd), WM_PAINT, 0, 0);
 }
 
 bool os_filename_exists(u16string &filename)

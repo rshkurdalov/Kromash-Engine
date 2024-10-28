@@ -45,51 +45,35 @@ handleable<frame> pulled_frame()
 	return pulled_frame_ref;
 }
 
-handleable<frame> window_mouse_event_receiver(window *wnd, observer<indefinite<frame>> *obs)
+handleable<frame> window_mouse_event_receiver(window *wnd, handleable<frame> fm, observer<indefinite<frame>> *obs)
 {
-	handleable<frame> fm = wnd->layout;
+	if(obs == &wnd->fm.mouse_click && fm.core->hook_mouse_click
+		|| obs == &wnd->fm.mouse_release && fm.core->hook_mouse_release
+		|| obs == &wnd->fm.mouse_move && fm.core->hook_mouse_move
+		|| obs == &wnd->fm.mouse_wheel_rotate && fm.core->hook_mouse_wheel_rotate)
+		return fm;
+	handleable<frame> target = handleable<frame>(nullptr, nullptr);
 	array<handleable<frame>> frames;
-	wnd->layout.core->subframes(wnd->layout.object, &frames);
-	uint64 i = 0;
-	while(i < frames.size)
+	fm.core->subframes(fm.object, &frames);
+	for(uint64 i = 0; i < frames.size; i++)
 	{
 		if(frames[i].core->visible
 			&& frames[i].core->hit_test(frames[i].object, mouse()->position))
-		{
-			if(obs == &wnd->fm.mouse_click)
-			{
-				if(frames[i].core->hook_mouse_click) return frames[i];
-				else if(frames[i].core->return_mouse_click) return fm;
-			}
-			else if(obs == &wnd->fm.mouse_release)
-			{
-				if(frames[i].core->hook_mouse_release) return frames[i];
-				else if(frames[i].core->return_mouse_release) return fm;
-			}
-			else if(obs == &wnd->fm.mouse_move)
-			{
-				if(frames[i].core->hook_mouse_move) return frames[i];
-				else if(frames[i].core->return_mouse_move) return fm;
-			}
-			else if(obs == &wnd->fm.mouse_wheel_rotate)
-			{
-				if(frames[i].core->hook_mouse_wheel_rotate) return frames[i];
-				else if(frames[i].core->return_mouse_wheel_rotate) return fm;
-			}
-			fm = frames[i];
-			frames.clear();
-			frames[i].core->subframes(frames[i].object, &frames);
-			i = 0;
-		}
-		else i++;
+			target = window_mouse_event_receiver(wnd, frames[i], obs);
 	}
-	return fm;
+	if(target.object.addr == nullptr
+		|| obs == &wnd->fm.mouse_click && target.core->return_mouse_click
+		|| obs == &wnd->fm.mouse_release && target.core->return_mouse_release
+		|| obs == &wnd->fm.mouse_move && target.core->return_mouse_move
+		|| obs == &wnd->fm.mouse_wheel_rotate && target.core->return_mouse_wheel_rotate)
+		return fm;
+	else return target;
 }
 
 void window_mouse_click(indefinite<frame> fm)
 {
 	window *wnd = (window *)(fm.addr);
-	handleable<frame> receiver = window_mouse_event_receiver(wnd, &wnd->fm.mouse_click);
+	handleable<frame> receiver = window_mouse_event_receiver(wnd, wnd->layout, &wnd->fm.mouse_click);
 	if(receiver.core->focusable) focus_frame(receiver);
 	else focus_frame(handleable<frame>(nullptr, nullptr));
 	receiver.core->mouse_click.trigger(receiver.object);
@@ -98,7 +82,7 @@ void window_mouse_click(indefinite<frame> fm)
 void window_mouse_release(indefinite<frame> fm)
 {
 	window *wnd = (window *)(fm.addr);
-	handleable<frame> receiver = window_mouse_event_receiver(wnd, &wnd->fm.mouse_release);
+	handleable<frame> receiver = window_mouse_event_receiver(wnd, wnd->layout, &wnd->fm.mouse_release);
 	receiver.core->mouse_release.trigger(receiver.object);
 	if(pulled_frame().object.addr != nullptr)
 	{
@@ -110,7 +94,7 @@ void window_mouse_release(indefinite<frame> fm)
 void window_mouse_move(indefinite<frame> fm)
 {
 	window *wnd = (window *)(fm.addr);
-	handleable<frame> receiver = window_mouse_event_receiver(wnd, &wnd->fm.mouse_move);
+	handleable<frame> receiver = window_mouse_event_receiver(wnd, wnd->layout, &wnd->fm.mouse_move);
 	hover_frame(receiver);
 	receiver.core->mouse_move.trigger(receiver.object);
 	if(pulled_frame().object.addr != nullptr)
@@ -120,7 +104,7 @@ void window_mouse_move(indefinite<frame> fm)
 void window_mouse_wheel_rotate(indefinite<frame> fm)
 {
 	window *wnd = (window *)(fm.addr);
-	handleable<frame> receiver = window_mouse_event_receiver(wnd, &wnd->fm.mouse_wheel_rotate);
+	handleable<frame> receiver = window_mouse_event_receiver(wnd, wnd->layout, &wnd->fm.mouse_wheel_rotate);
 	receiver.core->mouse_wheel_rotate.trigger(receiver.object);
 }
 
@@ -185,7 +169,7 @@ void window::update()
 		bmp.data[i] = alpha_color(0, 0, 0, 0);
 	bitmap_processor bp;
 	layout.core->render(layout.object, &bp, &bmp);
-	os_render_window(this);
+	//os_render_window(this);
 }
 
 void window::open()

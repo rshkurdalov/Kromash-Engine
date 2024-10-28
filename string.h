@@ -1,16 +1,6 @@
 #pragma once
 #include "real.h"
 
-struct string_mapping_config //!!!
-{
-	uint64 min_fraction_digits;
-	uint64 max_fraction_digits;
-
-	string_mapping_config();
-};
-
-string_mapping_config *string_config();
-
 template<typename char_type> struct string
 {
 	/*If array is empty addr is nullptr*/
@@ -174,22 +164,22 @@ template<typename char_type> struct string
 		return *this;
 	}
 
+	template<typename input_type>
+	string &operator<<(const input_type *source)
+	{
+		while(*source != input_type('\0'))
+		{
+			push(char_type(*source));
+			source++;
+		}
+	}
+
 	string &operator<<(const char_type *source)
 	{
 		uint64 length = 0;
-		while(source[length] != 0) length++;
+		while(source[length] != char_type('\0')) length++;
 		insert_range(size, source, source + length);
 		return *this;
-	}
-	
-	string &operator<<(int8 value)
-	{
-		return *this << int64(value);
-	}
-
-	string &operator<<(uint8 value)
-	{
-		return *this << uint64(value);
 	}
 
 	string &operator<<(int16 value)
@@ -234,18 +224,12 @@ template<typename char_type> struct string
 		return *this;
 	}
 	
-	string &operator<<(real value)
+	string &operator<<(real value) //!!!
 	{
 		if(value.negative) push(U'-');
 		*this << uint64(value.integer);
-		uint64 position = size;
 		push(char_type('.'));
 		*this << uint64(value.fraction);
-		while(size - position - 1 < string_config()->min_fraction_digits)
-			push(char_type('0'));
-		while(size - position - 1 > string_config()->max_fraction_digits)
-			pop();
-		if(position == size - 1) pop();
 		return *this;
 	}
 	
@@ -265,18 +249,6 @@ template<typename char_type> struct string
 	{
 		clear();
 		return *this << source;
-	}
-
-	string &operator<<=(int8 value)
-	{
-		clear();
-		return *this << value;
-	}
-	
-	string &operator<<=(uint8 value)
-	{
-		clear();
-		return *this << value;
 	}
 	
 	string &operator<<=(int16 value)
@@ -414,20 +386,6 @@ template<typename char_type> struct string_stream
 		chars_converted = 1;
 	}
 
-	void operator>>(int8 &value)
-	{
-		int64 result;
-		*this >> result;
-		value = int8(result);
-	}
-
-	void operator>>(uint8 &value)
-	{
-		uint64 result;
-		*this >> result;
-		value = uint8(result);
-	}
-
 	void operator>>(int16 &value)
 	{
 		int64 result;
@@ -508,7 +466,7 @@ template<typename char_type> struct string_stream
 		}
 	}
 	
-	void operator>>(real &value)
+	void operator>>(real &value) //!!!
 	{
 		real result;
 		int64 integer;
@@ -526,21 +484,143 @@ template<typename char_type> struct string_stream
 				result.integer = uint32(integer);
 			}
 			if(!ended() && addr[position] == '.'
-				&& position + 1 != size
-				&& addr[position + 1] >= char_type('0') && addr[position + 1] <= char_type('9'))
+				&& position + 1 != size && addr[position + 1] >= char_type('0') && addr[position + 1] <= char_type('9'))
 			{
 				position++;
 				chars_converted++;
-				uint32 chars_converted_temp = chars_converted,
-					chars_skiped_temp = chars_skiped;
+				string_stream<char_type> ss;
+				ss.addr = addr;
+				ss.size = size;
+				ss.position = position;
 				uint64 fraction;
-				*this >> fraction;
+				ss >> fraction;
 				result.fraction = uint32(fraction);
-				chars_skiped = chars_skiped_temp;
-				chars_converted += chars_converted_temp;
+				position += ss.chars_converted;
+				chars_converted += ss.chars_converted;
 			}
 			else result.fraction = 0;
 			value = result;
 		}
 	}
 };
+
+#include <cstdlib>
+#include <string>
+
+/*Get length of size-zero string*/
+template<typename char_type>
+uint64 sz_length(const char_type *str)
+{
+	uint64 length = 0;
+	while(str[length] != char_type('\0')) length++;
+	return length;
+}
+
+/*Create string from str with zero symbol in the end*/
+template<typename char_type>
+char8 *create_u8sz(string<char_type> &str)
+{
+	char8 *addr = new char8[str.size + 1];
+	for(uint64 i = 0; i < str.size; i++)
+		addr[i] = char8(str.addr[i]);
+	addr[str.size] = '\0';
+	return addr;
+}
+
+/*Create string from str with zero symbol in the end*/
+template<typename char_type>
+char16 *create_u16sz(string<char_type> &str)
+{
+	char16 *addr = new char16[str.size + 1];
+	for(uint64 i = 0; i < str.size; i++)
+		addr[i] = char16(str.addr[i]);
+	addr[str.size] = u'\0';
+	return addr;
+}
+
+/*Create string from str with zero symbol in the end*/
+template<typename char_type>
+char32 *create_u32sz(string<char_type> &str)
+{
+	char32 *addr = new char32[str.size + 1];
+	for(uint64 i = 0; i < str.size; i++)
+		addr[i] = char32(str.addr[i]);
+	addr[str.size] = u'\0';
+	return addr;
+}
+
+/*Append converted string from input to output*/
+template<typename input_type, typename output_type>
+void convert_string(string<input_type> &input, string<output_type> *output)
+{
+	if(output->capacity - output->size < input.size)
+		output->increase_capacity(input.size - (output->capacity - output->size));
+	for(uint64 i = 0; i < input.size; i++)
+		*output << output_type(input.addr[i]);
+}
+
+/*Append converted string from input to output*/
+template<typename input_type, typename output_type>
+void convert_sz(const input_type *input, string<output_type> *output)
+{
+	uint64 length = sz_length(input);
+	if(output->capacity - output->size < length)
+		output->increase_capacity(length - (output->capacity - output->size));
+	for(uint64 i = 0; i < length; i++)
+		*output << output_type(input[i]);
+}
+
+template<typename char_type>
+int64 load_integer(const char_type *str, uint64 size, uint32 radix)
+{
+	u8string u8str;
+	for(uint64 i = 0; i < size; i++)
+		u8str << str[i];
+	return strtoll(u8str.addr, nullptr, int32(radix));
+}
+
+template<typename char_type>
+float32 load_float32(const char_type *str, uint64 size, uint64 *chars_converted = nullptr)
+{
+	u8string u8str;
+	for(uint64 i = 0; i < size; i++)
+		u8str << str[i];
+	char8 *end;
+	float32 value = strtof(u8str.addr, &end);
+	if(chars_converted != nullptr)
+		*chars_converted = end - u8str.addr;
+	return value;
+}
+
+template<typename char_type>
+void write_float32(float32 value, string<char_type> *str)
+{
+	std::string std_str = std::to_string(value);
+	while(std_str.back() == char_type('0')) std_str.pop_back();
+	if(std_str.back() == char_type('.')) std_str.pop_back();
+	for(size_t i = 0; i < std_str.size(); i++)
+		*str << char_type(std_str[i]);
+}
+
+template<typename char_type>
+float64 load_float64(const char_type *str, uint64 size, uint64 *chars_converted = nullptr)
+{
+	u8string u8str;
+	for(uint64 i = 0; i < size; i++)
+		u8str << str[i];
+	char8 *end;
+	float64 value = strtod(u8str.addr, &end);
+	if(chars_converted != nullptr)
+		*chars_converted = end - u8str.addr;
+	return value;
+}
+
+template<typename char_type>
+void write_float64(float64 value, string<char_type> *str)
+{
+	std::string std_str = std::to_string(value);
+	while(std_str.back() == char_type('0')) std_str.pop_back();
+	if(std_str.back() == char_type('.')) std_str.pop_back();
+	for(size_t i = 0; i < std_str.size(); i++)
+		*str << char_type(std_str[i]);
+}

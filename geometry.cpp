@@ -167,8 +167,8 @@ void geometry_path::push_elliptic_arc(vector<float32, 2> point, float32 radius_r
 	unit.rotation = rotation;
 	matrix<float32, 3, 3> transform = rotating_matrix(rotation, unit.p2);
 	unit.p1 = elliptic_arc_point(unit.p2, unit.rx, unit.ry, unit.end_angle);
-	matrix<float32, 1, 3> p = vector<float32, 3>(unit.p1.x, unit.p1.y, 1.0f) * transform;
-	unit.p1 = vector<float32, 2>(p.m[0][0], p.m[0][1]);
+	vector<float32, 3> p = vector<float32, 3>(unit.p1.x, unit.p1.y, 1.0f) * transform;
+	unit.p1 = vector<float32, 2>(p.x, p.y);
 	data.push(unit);
 }
 

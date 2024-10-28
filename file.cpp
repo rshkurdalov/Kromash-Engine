@@ -3,6 +3,8 @@
 
 file::file()
 {
+	read_access = true;
+	write_access = true;
 	status = filestatus::closed;
 }
 

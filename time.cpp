@@ -253,7 +253,7 @@ days &operator<<(days &d, hours h)
 	return d;
 }
 
-nanoseconds now()
+timestamp now()
 {
-	return nanoseconds(os_current_timestamp());
+	return os_current_timestamp();
 }
