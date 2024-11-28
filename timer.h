@@ -1,6 +1,7 @@
 #pragma once
 #include "time.h"
 #include "set.h"
+#include "function.h"
 
 enum struct timer_state
 {
@@ -25,8 +26,7 @@ struct timer
 	timestamp trigger_time;
 	timestamp pause_hold;
 	timestamp period;
-	timer_trigger_postaction (*callback)(void *data);
-	void *data;
+	function<timer_trigger_postaction()> callback;
 
 	timer();
 	~timer();

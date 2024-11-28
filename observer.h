@@ -1,9 +1,10 @@
 #pragma once
 #include "array.h"
+#include "function.h"
 
 template<typename ...args> struct observer
 {
-	array<void(*)(args...)> callbacks;
+	array<function<void(args...)>> callbacks;
 
 	void trigger(args... arguments)
 	{

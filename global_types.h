@@ -1,5 +1,4 @@
 #pragma once
-#include <new>
 
 typedef char int8;
 typedef unsigned char uint8;
@@ -41,6 +40,14 @@ template<typename value_type> struct copier
 	}
 };
 
+template<typename value_type> struct mover
+{
+	void operator()(value_type &input, value_type *output)
+	{
+		*output = input;
+	}
+};
+
 template<typename base_type> struct indefinite
 {
 	void *addr;
@@ -59,5 +66,7 @@ template<typename base_type> struct handleable
 		: object(object), core(core) {}
 };
 
-constexpr uint64 not_found = uint64(-1);
-constexpr uint64 not_exists = uint64(-1);
+template<typename value_type>
+constexpr value_type not_found = value_type(-1);
+template<typename value_type>
+constexpr value_type not_exists = value_type(-1);

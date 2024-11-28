@@ -73,7 +73,7 @@
     <ClCompile Include="timer.cpp">
       <Filter>Исходные файлы\global</Filter>
     </ClCompile>
-    <ClCompile Include="push_button.cpp">
+    <ClCompile Include="button.cpp">
       <Filter>Исходные файлы\ui</Filter>
     </ClCompile>
     <ClCompile Include="file.cpp">
@@ -97,11 +97,14 @@
     <ClCompile Include="world_object.cpp">
       <Filter>Исходные файлы\world</Filter>
     </ClCompile>
-    <ClCompile Include="WICTextureLoader.cpp">
-      <Filter>Исходные файлы</Filter>
+    <ClCompile Include="image_view.cpp">
+      <Filter>Исходные файлы\ui</Filter>
     </ClCompile>
-    <ClCompile Include="DDSTextureLoader.cpp">
-      <Filter>Исходные файлы</Filter>
+    <ClCompile Include="database.cpp">
+      <Filter>Исходные файлы\data</Filter>
+    </ClCompile>
+    <ClCompile Include="heightmap.cpp">
+      <Filter>Исходные файлы\world</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -180,7 +183,7 @@
     <ClInclude Include="grid_layout.h">
       <Filter>Исходные файлы\ui</Filter>
     </ClInclude>
-    <ClInclude Include="push_button.h">
+    <ClInclude Include="button.h">
       <Filter>Исходные файлы\ui</Filter>
     </ClInclude>
     <ClInclude Include="text_field.h">
@@ -201,17 +204,20 @@
     <ClInclude Include="world_object.h">
       <Filter>Исходные файлы\world</Filter>
     </ClInclude>
-    <ClInclude Include="WICTextureLoader.h">
-      <Filter>Исходные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="DDSTextureLoader.h">
-      <Filter>Исходные файлы</Filter>
-    </ClInclude>
-    <ClInclude Include="DDS.h">
-      <Filter>Исходные файлы</Filter>
-    </ClInclude>
     <ClInclude Include="gltf.h">
       <Filter>Исходные файлы\data</Filter>
+    </ClInclude>
+    <ClInclude Include="image_view.h">
+      <Filter>Исходные файлы\ui</Filter>
+    </ClInclude>
+    <ClInclude Include="database.h">
+      <Filter>Исходные файлы\data</Filter>
+    </ClInclude>
+    <ClInclude Include="function.h">
+      <Filter>Исходные файлы\global</Filter>
+    </ClInclude>
+    <ClInclude Include="heightmap.h">
+      <Filter>Исходные файлы\world</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

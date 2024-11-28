@@ -74,7 +74,7 @@ struct brush
 	vector<float32, 2> v2;
 	float32 rx;
 	float32 ry;
-	bitmap *bitmap_addr;
+	bitmap *bmp;
 	matrix<float32, 3, 3> bitmap_transform;
 	matrix<float32, 3, 3> reverse_transform;
 
@@ -91,20 +91,22 @@ struct brush
 		vector<float32, 2> offset,
 		float32 rx_value,
 		float32 ry_value);
-	void switch_bitmap(bitmap *source_bitmap, matrix<float32, 3, 3> &bitmap_transform_matrix);
+	void switch_bitmap(bitmap *source_bitmap, matrix<float32, 3, 3> bitmap_transform_matrix);
 };
 
-struct bitmap_processor
+struct graphics_displayer
 {
 	rasterization_mode rasterization;
 	float32 line_width;
-	matrix<float32, 3, 3> transform;
+	array<matrix<float32, 3, 3>> transform_stack;
 	array<rectangle<int32>> scissor_stack;
 	float32 opacity;
 	color_interpolation_mode color_interpolation;
 	brush br;
 
-	bitmap_processor();
+	graphics_displayer();
+	void push_transform(matrix<float32, 3, 3> transform);
+	void pop_transform();
 	void push_scissor(rectangle<int32> rect);
 	void pop_scissor();
 	alpha_color point_color(uint32 x, uint32 y);
@@ -119,9 +121,8 @@ struct world_vertex
 	vector<float32, 3> point;
 	vector<float32, 2> texture;
 	vector<float32, 3> normal;
-	vector<float32, 3> tangent;
-	uint32 weight_idx;
-	uint32 weight_count;
+	vector<int32, 4> joints;
+	vector<float32, 4> weights;
 
 	world_vertex() {}
 
@@ -142,59 +143,8 @@ struct world_vertex
 		vector<float32, 3> point_value,
 		vector<float32, 2> texture_value,
 		vector<float32, 3> normal_value,
-		vector<float32, 3> tangent_value)
-		: point(point_value), texture(texture_value), normal(normal_value), tangent(tangent_value) {}
-
-	world_vertex(
-		vector<float32, 3> point_value,
-		vector<float32, 2> texture_value,
-		vector<float32, 3> normal_value,
-		vector<float32, 3> tangent_value,
-		uint32 weight_idx_value,
-		uint32 weight_count_value)
-		: point(point_value), texture(texture_value), normal(normal_value), tangent(tangent_value),
-		weight_idx(weight_idx_value), weight_count(weight_count_value) {}
-};
-
-struct model_joint
-{
-	uint32 parent;
-	vector<float32, 3> position;
-	vector<float32, 4> orientation;
-	vector<float32, 3> scale;
-};
-
-struct model_weight
-{
-	uint32 joint_idx;
-	float32 bias;
-	vector<float32, 3> position;
-	vector<float32, 3> normal;
-};
-
-enum struct joint_frame_transform_type
-{
-	scaling,
-	rotating,
-	translating,
-	weighting
-};
-
-struct model_joint_frame
-{
-	uint32 joint_idx;
-	array<float32> timestamps;
-	joint_frame_transform_type frame_type;
-	array<vector<float32, 4>> frames;
-};
-
-struct model_animation
-{
-	uint32 frame_count;
-	uint32 frame_rate;
-	uint32 animated_component_count;
-	float32 frame_time;
-	float32 total_animation_time;
-	timestamp start_animation_time;
-	array<model_joint_frame> frame_skeleton;
+		vector<int32, 4> joints_value,
+		vector<float32, 4> weights_value)
+		: point(point_value), texture(texture_value), normal(normal_value),
+		joints(joints_value), weights(weights_value) {}
 };

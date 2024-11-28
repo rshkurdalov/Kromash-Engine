@@ -132,13 +132,13 @@ window::window()
 	fm.height_desc = 400.0uiabs;
 	fm.width = 0;
 	fm.height = 0;
-	fm.mouse_click.callbacks.push(window_mouse_click);
-	fm.mouse_release.callbacks.push(window_mouse_release);
-	fm.mouse_move.callbacks.push(window_mouse_move);
-	fm.mouse_wheel_rotate.callbacks.push(window_mouse_wheel_rotate);
-	fm.key_press.callbacks.push(window_key_press);
-	fm.key_release.callbacks.push(window_key_release);
-	fm.char_input.callbacks.push(window_char_input);
+	fm.mouse_click.callbacks.push_moving(window_mouse_click);
+	fm.mouse_release.callbacks.push_moving(window_mouse_release);
+	fm.mouse_move.callbacks.push_moving(window_mouse_move);
+	fm.mouse_wheel_rotate.callbacks.push_moving(window_mouse_wheel_rotate);
+	fm.key_press.callbacks.push_moving(window_key_press);
+	fm.key_release.callbacks.push_moving(window_key_release);
+	fm.char_input.callbacks.push_moving(window_char_input);
 	os_create_window(this);
 }
 
@@ -152,10 +152,12 @@ void window::update()
 	vector<int32, 2> position = os_window_content_position(this);
 	vector<uint32, 2> client_size = os_window_content_size(this),
 		screen_size = os_screen_size();
-	if(fm.width != screen_size.x || fm.height != screen_size.y)
+	if(bmp.width != screen_size.x || bmp.height != screen_size.y)
 	{
 		bmp.resize(screen_size.x, screen_size.y);
 		os_update_window_size(this);
+		for(uint32 i = 0; i < bmp.width * bmp.height; i++)
+			bmp.data[i] = alpha_color(0, 0, 0, 0);
 	}
 	fm.x = position.x;
 	fm.y = position.y;
@@ -165,9 +167,8 @@ void window::update()
 	layout.core->y = position.y;
 	layout.core->width = fm.width;
 	layout.core->height = fm.height;
-	for(uint32 i = 0; i < bmp.width * bmp.height; i++)
-		bmp.data[i] = alpha_color(0, 0, 0, 0);
-	bitmap_processor bp;
+	set_memory(bmp.data, bmp.width * bmp.height * sizeof(alpha_color), 0);
+	graphics_displayer bp;
 	layout.core->render(layout.object, &bp, &bmp);
 	//os_render_window(this);
 }

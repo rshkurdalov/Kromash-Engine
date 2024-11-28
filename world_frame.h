@@ -2,6 +2,7 @@
 #include "graphics.h"
 #include "time.h"
 #include "world_object.h"
+#include "heightmap.h"
 #include "window.h"
 #include <d3d11.h>
 #include <d3dcompiler.h>
@@ -9,14 +10,40 @@
 
 using namespace DirectX;
 
+#pragma pack(push, 1)
 struct constant_buffer
 {
-	uint32 width;
-	uint32 height;
 	XMMATRIX wvp;
 	XMMATRIX world;
-	vector<float32, 4> color;
+	uint32 width;
+	uint32 height;
+	uint32 animated;
 	uint32 radius;
+	vector<float32, 4> color;
+	uint32 manual_uv;
+	float32 begin_x;
+	float32 begin_z;
+	float32 size_x;
+	float32 size_z;
+	uint32 pbr;
+	uint32 padding1[2];
+
+	vector<float32, 3> light_dir;
+	uint32 padding3;
+	vector<float32, 3> light_color;
+	uint32 padding4;
+	
+    vector<float32, 3> camera;
+	uint32 padding5;
+    vector<float32, 4> baseColorFactor;
+	float32 metallic_factor;
+    float32 roughness_factor;
+};
+#pragma pack(pop)
+
+struct constant_buffer_joints
+{
+	XMMATRIX final_transform[250];
 };
 
 struct camera_view
@@ -80,8 +107,10 @@ struct world
 	ID3D11RenderTargetView *render_target_view;
 	ID3D11DepthStencilView *depth_stencil_view;
 	ID3D11Texture2D *depth_stencil_buffer;
-	ID3D11Buffer *cbPerObjectBuffer;
 	constant_buffer cb;
+	ID3D11Buffer *cb_handler;
+	constant_buffer_joints cb_joints;
+	ID3D11Buffer *cb_joints_handler;
 
 	ID3DBlob *vertex_shader_buffer;
 	ID3D11VertexShader *vertex_shader;
@@ -90,11 +119,9 @@ struct world
 	ID3D11InputLayout *vertex_layout;
 	ID3D11SamplerState *sampler_state;
 
-	/*undeleted - begin*/
 	ID3D11Texture2D *render_target;
 	ID3D11RenderTargetView *rt_view;
 	ID3D11ShaderResourceView *rt_shader_resource_view;
-	/*undeleted - end*/
 
 	ID3DBlob *ui_vertex_shader_buffer;
 	ID3D11VertexShader *ui_vertex_shader;
@@ -114,6 +141,11 @@ struct world
 	world_object cube;
 	texture_view cube_tv;
 	skymap sky;
+	heightmap hm;
+
+	uint32 fps;
+	timestamp fps_second_accumulative;
+	uint32 fps_accumulative;
 
 	world();
 	~world();
@@ -128,12 +160,14 @@ struct world
 	void initialize_scene();
 	void mouse_click();
 	void update_movement();
+	void update_fps();
 	void resize();
+	void render_heightmap();
 	void render_sky();
 	void render_objects();
 	void render_outline();
-	void render_ui(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp);
-	void render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp);
+	void render_ui(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp);
+	void render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp);
 };
 
 struct world_frame

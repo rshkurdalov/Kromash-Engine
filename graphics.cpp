@@ -60,26 +60,35 @@ void brush::switch_radial_gradient(
 	ry = ry_value;
 }
 
-void brush::switch_bitmap(bitmap *source_bitmap, matrix<float32, 3, 3> &bitmap_transform_matrix)
+void brush::switch_bitmap(bitmap *source_bitmap, matrix<float32, 3, 3> bitmap_transform_matrix)
 {
 	type = brush_type::bitmap;
-	bitmap_addr = source_bitmap;
+	bmp = source_bitmap;
 	bitmap_transform = bitmap_transform_matrix;
 	reverse_transform = bitmap_transform;
 	invert_matrix(&reverse_transform);
 }
 
-bitmap_processor::bitmap_processor()
+graphics_displayer::graphics_displayer()
 {
 	rasterization = rasterization_mode::fill;
 	line_width = 1.0f;
-	set_identity_matrix(&transform);
 	opacity = 1.0f;
 	color_interpolation = color_interpolation_mode::flat;
 	br.switch_solid_color(alpha_color(0, 0, 0, 255));
 }
 
-void bitmap_processor::push_scissor(rectangle<int32> rect)
+void graphics_displayer::push_transform(matrix<float32, 3, 3> transform)
+{
+	transform_stack.push(transform);
+}
+
+void graphics_displayer::pop_transform()
+{
+	transform_stack.pop();
+}
+
+void graphics_displayer::push_scissor(rectangle<int32> rect)
 {
 	if(scissor_stack.size == 0)
 		scissor_stack.push(rect);
@@ -106,12 +115,12 @@ void bitmap_processor::push_scissor(rectangle<int32> rect)
 	}
 }
 
-void bitmap_processor::pop_scissor()
+void graphics_displayer::pop_scissor()
 {
 	scissor_stack.pop();
 }
 
-alpha_color bitmap_processor::point_color(uint32 x, uint32 y)
+alpha_color graphics_displayer::point_color(uint32 x, uint32 y)
 {
 	if(br.type == brush_type::solid)
 	{
@@ -122,9 +131,9 @@ alpha_color bitmap_processor::point_color(uint32 x, uint32 y)
 		vector<float32, 3> mp = vector<float32, 3>(float32(x) + 0.5f, float32(y) + 0.5f, 1.0f) * br.reverse_transform;
 		vector<float32, 2> p = vector<float32, 2>(mp.x, mp.y);
 		int32 bx = int32(round(p.x)), by = int32(round(p.y));
-		if(bx < 0 || bx >= int32(br.bitmap_addr->width) || by < 0 || by >= int32(br.bitmap_addr->height))
+		if(bx < 0 || bx >= int32(br.bmp->width) || by < 0 || by >= int32(br.bmp->height))
 			return alpha_color(0, 0, 0, 0);
-		return br.bitmap_addr->data[(br.bitmap_addr->height - 1 - uint32(by)) * br.bitmap_addr->width + uint32(bx)];
+		return br.bmp->data[(br.bmp->height - 1 - uint32(by)) * br.bmp->width + uint32(bx)];
 	}
 	else
 	{
@@ -333,7 +342,7 @@ void outline_path(float32 width, geometry_path *path)
 	swap(&path->data, &outline_path.data);
 }
 
-void bitmap_processor::render(geometry_path &path, bitmap *bmp)
+void graphics_displayer::render(geometry_path &path, bitmap *bmp)
 {
 	const uint64 sublines = 4;
 	const float32 dy = 0.25f;
@@ -348,6 +357,8 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 		float32 coord;
 		bool negative_direction;
 
+		range_coordinate() {}
+
 		range_coordinate(float32 coord, bool negative_direction)
 			: coord(coord), negative_direction(negative_direction) {}
 	};
@@ -360,6 +371,9 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 	vector<float32, 2> p1, p2, p3, p4;
 	if(path.data.size == 0) return;
 	transformed_path.data.increase_capacity(2 * path.data.size);
+	matrix<float32, 3, 3> transform;
+	if(transform_stack.size == 0) set_identity_matrix(&transform);
+	else transform = transform_stack.back();
 	for(uint64 i = 0; i < path.data.size; i++)
 	{
 		if(path.data[i].type == geometry_path_unit::move)
@@ -522,7 +536,7 @@ void bitmap_processor::render(geometry_path &path, bitmap *bmp)
 	}
 }
 
-void bitmap_processor::fill_area(rectangle<int32> target_area, bitmap *target)
+void graphics_displayer::fill_area(rectangle<int32> target_area, bitmap *target)
 {
 	vector<int32, 2> p,
 		p1(max(0, target_area.position.x), max(0, target_area.position.y)),
@@ -567,7 +581,7 @@ void bitmap_processor::fill_area(rectangle<int32> target_area, bitmap *target)
 	}
 }
 
-void bitmap_processor::fill_bitmap(bitmap &source, vector<int32, 2> target_point, bitmap *target)
+void graphics_displayer::fill_bitmap(bitmap &source, vector<int32, 2> target_point, bitmap *target)
 {
 	vector<int32, 2> p,
 		p1(max(0, target_point.x), max(0, target_point.y)),
@@ -607,7 +621,7 @@ void bitmap_processor::fill_bitmap(bitmap &source, vector<int32, 2> target_point
 	}
 }
 
-void bitmap_processor::fill_opacity_bitmap(bitmap &source, vector<int32, 2> target_point, bitmap *target)
+void graphics_displayer::fill_opacity_bitmap(bitmap &source, vector<int32, 2> target_point, bitmap *target)
 {
 	vector<int32, 2> p,
 		p1(max(0, target_point.x), max(0, target_point.y)),

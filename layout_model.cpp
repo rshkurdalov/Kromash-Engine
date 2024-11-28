@@ -9,7 +9,7 @@ void layout_model::initialize(handleable<frame> fm)
 	fm.core->padding_top = 0.0uiabs;
 }
 
-void layout_model::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void layout_model::render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	rectangle viewport = fm.core->frame_viewport(),
 		content_viewport = fm.core->frame_content_viewport();
@@ -18,6 +18,6 @@ void layout_model::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bm
 		|| viewport.extent.x <= 0 || viewport.extent.y <= 0
 		|| content_viewport.extent.x <= 0 || content_viewport.extent.y <= 0)
 		return;
-	bp->br.switch_solid_color(background_color);
-	bp->fill_area(viewport, bmp);
+	gd->br.switch_solid_color(background_color);
+	gd->fill_area(viewport, bmp);
 }

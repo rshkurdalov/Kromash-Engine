@@ -8,6 +8,11 @@ file::file()
 	status = filestatus::closed;
 }
 
+file::~file()
+{
+	if(status == filestatus::opened) close();
+}
+
 bool file::exists()
 {
 	return os_filename_exists(filename);
@@ -40,5 +45,10 @@ uint64 file::write(void *addr, uint64 bytes_size)
 
 bool file::remove()
 {
-	return os_delete_file(filename);
+	return os_delete_file(this, filename);
+}
+
+bool file::move(u16string &new_path)
+{
+	return os_move_file(this, new_path);
 }

@@ -3,11 +3,11 @@
 
 template<typename value_type> struct array
 {
-	/*If array is empty addr is nullptr*/
+	/*If array is empty <addr> is nullptr*/
 	value_type *addr;
-	/*If addr is nullptr - size must be 0*/
+	/*If <addr> is nullptr - size must be 0*/
 	uint64 size;
-	/*If addr is nullptr - capacity must be 0*/
+	/*If <addr> is nullptr - capacity must be 0*/
 	uint64 capacity;
 
 	array()
@@ -24,7 +24,7 @@ template<typename value_type> struct array
 		delete[] (byte *)addr;
 	}
 
-	/*Increase capacity by a minimum of min_value elements*/
+	/*Increase capacity by a minimum of <min_value> elements*/
 	void increase_capacity(uint64 min_value)
 	{
 		min_value += capacity;
@@ -41,16 +41,33 @@ template<typename value_type> struct array
 		}
 	}
 
-	/*idx must be valid array position*/
+	/*Ensure capacity by a minimum of <min_value> elements*/
+	void ensure_capacity(uint64 min_value)
+	{
+		if(capacity < min_value) increase_capacity(min_value - capacity);
+	}
+
+	/*<idx> must be valid array position*/
 	void insert(uint64 idx, const value_type &value)
 	{
 		if(size == capacity) increase_capacity(1);
 		move_memory(addr + idx, addr + idx + 1, (size - idx) * sizeof(value_type));
+		construct(addr + idx);
 		copy(value, addr + idx);
 		size++;
 	}
 
-	/*idx must be valid array position*/
+	/*<idx> must be valid array position*/
+	void insert_moving(uint64 idx, value_type &&value)
+	{
+		if(size == capacity) increase_capacity(1);
+		move_memory(addr + idx, addr + idx + 1, (size - idx) * sizeof(value_type));
+		construct(addr + idx);
+		move(value, addr + idx);
+		size++;
+	}
+
+	/*<idx> must be valid array position*/
 	void insert_range(uint64 idx, const value_type *begin, const value_type *end)
 	{
 		uint64 count = end - begin;
@@ -60,6 +77,7 @@ template<typename value_type> struct array
 		size += count;
 		while(begin != end)
 		{
+			construct(addr + idx);
 			copy(*begin, addr + idx);
 			begin++;
 			idx++;
@@ -67,7 +85,7 @@ template<typename value_type> struct array
 	}
 
 	/*Insert element and call default constructor
-	idx must be valid array position*/
+	<idx> must be valid array position*/
 	void insert_default(uint64 idx, uint64 count)
 	{
 		if(capacity < size + count)
@@ -77,11 +95,21 @@ template<typename value_type> struct array
 		size += count;
 	}
 
-	/*Insert elements to the end of array*/
+	/*Insert element to the end of array*/
 	void push(const value_type &value)
 	{
 		if(size == capacity) increase_capacity(1);
+		construct(addr + size);
 		copy(value, addr + size);
+		size++;
+	}
+
+	/*Insert element to the end of array*/
+	void push_moving(value_type &&value)
+	{
+		if(size == capacity) increase_capacity(1);
+		construct(addr + size);
+		move(value, addr + size);
 		size++;
 	}
 
@@ -93,7 +121,7 @@ template<typename value_type> struct array
 		construct(addr + size - 1);
 	}
 
-	/*idx must be valid array position*/
+	/*<idx> must be valid array position*/
 	void remove(uint64 idx)
 	{
 		destroy(addr + idx);
@@ -102,7 +130,7 @@ template<typename value_type> struct array
 	}
 
 	/*Remove elements in [begin, end) range
-	begin, end must be valid array position values*/
+	<begin>, <end> must be valid array position values*/
 	void remove_range(uint64 begin, uint64 end)
 	{
 		destroy_range(addr + begin, addr + end);
@@ -157,8 +185,8 @@ template<typename value_type> struct array
 		return addr[size - 1];
 	}
 
-	/*Get reference to element of array by idx
-	idx must be valid array position*/
+	/*Get reference to element of array by <idx>
+	<idx> must be valid array position*/
 	value_type &operator[](uint64 idx)
 	{
 		return addr[idx];
@@ -241,9 +269,22 @@ template<typename value_type> struct array
 
 template<typename value_type> struct copier<array<value_type>>
 {
-	void operator()(array<value_type> &input, array<value_type> *output)
+	void operator()(const array<value_type> &input, array<value_type> *output)
 	{
 		output->clear();
 		output->insert_range(0, input.addr, input.addr + input.size);
+	}
+};
+
+template<typename value_type> struct mover<array<value_type>>
+{
+	void operator()(array<value_type> &input, array<value_type> *output)
+	{
+		output->addr = input.addr;
+		output->size = input.size;
+		output->capacity = input.capacity;
+		input.addr = nullptr;
+		input.size = 0;
+		input.capacity = 0;
 	}
 };

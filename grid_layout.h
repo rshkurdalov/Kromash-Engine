@@ -38,7 +38,7 @@ struct grid_layout_data
 	void subframes(handleable<frame> fm, array<handleable<frame>> *frames_addr);
 	vector<uint32, 2> content_size(handleable<frame> fm, uint32 viewport_width, uint32 viewport_height);
 	void update_layout(handleable<frame> fm);
-	void render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp);
+	void render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp);
 	void mouse_wheel_rotate(handleable<frame> fm);
 };
 

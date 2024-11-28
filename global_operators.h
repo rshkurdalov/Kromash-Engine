@@ -1,5 +1,7 @@
 #pragma once
 #include "global_types.h"
+#include <new>
+#include <cstring>
 
 #define EmitAccumulativeOperator(Name, Operation) \
 template<typename value_type> \
@@ -235,7 +237,13 @@ void copy(const value_type &source, value_type *target)
 }
 
 template<typename value_type>
-void move_addr(value_type **value_addr, int64 offset)
+void move(value_type &source, value_type *target)
+{
+	mover<value_type>()(source, target);
+}
+
+template<typename value_type>
+void shift_addr(value_type **value_addr, int64 offset)
 {
 	*value_addr = static_cast<value_type *>(static_cast<void *>(
 		*static_cast<byte **>(static_cast<void *>(value_addr)) + offset));
@@ -262,36 +270,17 @@ void swap(value_type *addr1, value_type *addr2)
 
 inline void copy_memory(const void *source, void *target, uint64 size)
 {
-	while(size--)
-	{
-		static_copy<1>(source, target);
-		move_addr(&source, 1);
-		move_addr(&target, 1);
-	}
+	memcpy(target, source, size_t(size));
 }
 
 inline void move_memory(void *source, void *target, uint64 size)
 {
-	if(target < source)
-	{
-		while(size--)
-		{
-			static_copy<1>(source, target);
-			move_addr(&source, 1);
-			move_addr(&target, 1);
-		}
-	}
-	else
-	{
-		move_addr(&source, size - 1);
-		move_addr(&target, size - 1);
-		while(size--)
-		{
-			static_copy<1>(source, target);
-			move_addr(&source, -1);
-			move_addr(&target, -1);
-		}
-	}
+	memmove(target, source, size_t(size));
+}
+
+inline void set_memory(void *target, uint64 size, int32 value)
+{
+	memset(target, value, size_t(size));
 }
 
 enum struct compare_result : uint8
@@ -312,15 +301,15 @@ compare_result compare_memory(void *addr1, void *addr2, uint64 size)
 				return compare_result::less;
 			else return compare_result::greater;
 		}
-		move_addr(&addr1, sizeof(stride_type));
-		move_addr(&addr2, sizeof(stride_type));
+		shift_addr(&addr1, sizeof(stride_type));
+		shift_addr(&addr2, sizeof(stride_type));
 		size -= sizeof(stride_type);
 	}
 	return compare_result::equal;
 }
 
 template<typename value_type, uint64 size>
-constexpr uint64 array_size(value_type (&)[size])
+constexpr uint64 array_size(value_type(&)[size])
 {
 	return size;
 }

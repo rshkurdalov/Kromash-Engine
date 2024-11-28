@@ -288,13 +288,13 @@ void grid_layout_data::update_layout(handleable<frame> fm)
 				if(glf->halign == horizontal_align::left)
 					glf->fm.core->x = position.x;
 				else if(glf->halign == horizontal_align::center)
-					glf->fm.core->x = position.x + (metrics.columns_size[j] - glf->fm.core->width) / 2;
-				else glf->fm.core->x = position.x + metrics.columns_size[j] - glf->fm.core->width;
+					glf->fm.core->x = position.x + (int32(metrics.columns_size[j]) - int32(glf->fm.core->width)) / 2;
+				else glf->fm.core->x = position.x + int32(metrics.columns_size[j]) - int32(glf->fm.core->width);
 				if(glf->valign == vertical_align::bottom)
 					glf->fm.core->y = position.y;
 				else if(glf->valign == vertical_align::center)
-					glf->fm.core->y = position.y + (metrics.rows_size[i] - glf->fm.core->height) / 2;
-				else glf->fm.core->y = position.y + metrics.rows_size[i] - glf->fm.core->height;
+					glf->fm.core->y = position.y + (int32(metrics.rows_size[i]) - int32(glf->fm.core->height)) / 2;
+				else glf->fm.core->y = position.y + int32(metrics.rows_size[i]) - int32(glf->fm.core->height);
 			}
 			position.x += int32(metrics.columns_size[j]);
 		}
@@ -303,7 +303,7 @@ void grid_layout_data::update_layout(handleable<frame> fm)
 	}
 }
 
-void grid_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void grid_layout_data::render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	rectangle<int32> content_viewport = fm.core->frame_content_viewport();
 	if(!fm.core->visible
@@ -311,7 +311,7 @@ void grid_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap
 		|| content_viewport.extent.y <= 0)
 		return;
 	update_layout(fm);
-	bp->push_scissor(content_viewport);
+	gd->push_scissor(content_viewport);
 	if(xscroll.data.content_size > xscroll.data.viewport_size)
 		xscroll.data.viewport_offset
 			= min(xscroll.data.viewport_offset, xscroll.data.content_size - xscroll.data.viewport_size);
@@ -331,11 +331,11 @@ void grid_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap
 			&& frames.addr[i].fm.core->y < content_viewport.position.y + content_viewport.extent.y
 			&& frames.addr[i].fm.core->y + int32(frames.addr[i].fm.core->height)
 				>= content_viewport.position.y)
-			frames.addr[i].fm.core->render(frames.addr[i].fm.core, bp, bmp);
+			frames.addr[i].fm.core->render(frames.addr[i].fm.core, gd, bmp);
 	}
-	bp->pop_scissor();
-	xscroll.fm.render(&xscroll.fm, bp, bmp);
-	yscroll.fm.render(&yscroll.fm, bp, bmp);
+	gd->pop_scissor();
+	xscroll.fm.render(&xscroll.fm, gd, bmp);
+	yscroll.fm.render(&yscroll.fm, gd, bmp);
 }
 
 void grid_layout_data::mouse_wheel_rotate(handleable<frame> fm)
@@ -365,11 +365,11 @@ vector<uint32, 2> grid_layout_content_size(indefinite<frame> fm, uint32 viewport
 	return gl->data.content_size(handleable<frame>(gl, &gl->fm), viewport_width, viewport_height);
 }
 
-void grid_layout_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void grid_layout_render(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	grid_layout *gl = (grid_layout *)(fm.addr);
-	gl->model.render(handleable<frame>(gl, &gl->fm), bp, bmp);
-	gl->data.render(handleable<frame>(gl, &gl->fm), bp, bmp);
+	gl->model.render(handleable<frame>(gl, &gl->fm), gd, bmp);
+	gl->data.render(handleable<frame>(gl, &gl->fm), gd, bmp);
 }
 
 void grid_layout_mouse_wheel_rotate(indefinite<frame> fm)
@@ -384,7 +384,7 @@ grid_layout::grid_layout()
 	fm.subframes = grid_layout_subframes;
 	fm.content_size = grid_layout_content_size;
 	fm.render = grid_layout_render;
-	fm.mouse_wheel_rotate.callbacks.push(grid_layout_mouse_wheel_rotate);
+	fm.mouse_wheel_rotate.callbacks.push_moving(grid_layout_mouse_wheel_rotate);
 	data.initialize(handleable<frame>(this, &fm));
 	model.initialize(handleable<frame>(this, &fm));
 }

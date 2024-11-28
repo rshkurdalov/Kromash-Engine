@@ -25,7 +25,7 @@ template<typename char_type> struct json_node
 	{
 		for(uint64 i = 0; i < values.size; i++)
 			if(values[i].key == key_value) return i;
-		return not_found;
+		return not_found<uint64>;
 	}
 
 	json_node &operator[](const string<char_type> &key_value)

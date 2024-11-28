@@ -1,4 +1,5 @@
 #include "world_object.h"
+#include "time.h"
 
 texture_view::texture_view()
 {
@@ -27,10 +28,10 @@ void world_object::initialize_render_resources(ID3D11Device *device)
 {
     D3D11_BUFFER_DESC vertexBufferDesc;
     ZeroMemory(&vertexBufferDesc, sizeof(vertexBufferDesc));
-    vertexBufferDesc.Usage = D3D11_USAGE_DYNAMIC; //!!!
+    vertexBufferDesc.Usage = D3D11_USAGE_DEFAULT;
     vertexBufferDesc.ByteWidth = sizeof(world_vertex) * vertices.size;
     vertexBufferDesc.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vertexBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE; //!!!
+    vertexBufferDesc.CPUAccessFlags = 0;
     vertexBufferDesc.MiscFlags = 0;
 
 	D3D11_SUBRESOURCE_DATA vertexBufferData; 
@@ -83,95 +84,82 @@ void generate_cylinder(uint32 long_lines, array<world_vertex> *vertices)
     }
 }
 
-void world_model::run_animation(ID3D11DeviceContext *device_context, uint32 animation_idx, float32 t)
+void world_model::reset_animation(uint32 animation)
 {
-	float32 interpolation;
-	array<model_joint> interpolated_skeleton;
-	model_joint temp_joint;
-	interpolated_skeleton.insert_default(0, joints.size);
-	for(uint64 i = 0; i < interpolated_skeleton.size; i++)
+	animations[animation].start_animation_time = now();
+}
+
+void world_model::play_animation(uint32 animation)
+{
+	float32 t = float32(float64(now() - animations[animation].start_animation_time) / 1000000000.0);
+	if(t >= animations[animation].total_animation_time)
 	{
-		interpolated_skeleton[i].scale = vector<float32, 3>(1.0f, 1.0f, 1.0f);
-		interpolated_skeleton[i].orientation = vector<float32, 4>(1.0f, 0.0f, 0.0f, 0.0f);
-		interpolated_skeleton[i].position = vector<float32, 3>(0.0f, 0.0f, 0.0f);
+		animations[animation].start_animation_time = now();
+		t = 0.0f;
 	}
-	for(uint64 i = 0; i < animations[animation_idx].frame_skeleton.size; i++)
+	float32 interpolation;
+	for(uint64 i = 0; i < nodes.size; i++)
 	{
-		for(uint64 j = 0; j < animations[animation_idx].frame_skeleton[i].timestamps.size - 1; j++)
+		nodes[i].scale = XMMatrixIdentity();
+		nodes[i].rotation = XMMatrixIdentity();
+		nodes[i].translation = XMMatrixIdentity();
+	}
+	for(uint64 i = 0; i < animations[animation].channels.size; i++)
+	{
+		for(uint64 j = 0; j < animations[animation].channels[i].timestamps.size - 1; j++)
 		{
-			if(t >= animations[animation_idx].frame_skeleton[i].timestamps[j + 1]) continue;
-			interpolation = (t - animations[animation_idx].frame_skeleton[i].timestamps[j])
-				/ (animations[animation_idx].frame_skeleton[i].timestamps[j + 1] - animations[animation_idx].frame_skeleton[i].timestamps[j]);
-			if(animations[animation_idx].frame_skeleton[i].frame_type == joint_frame_transform_type::scaling)
+			if(t >= animations[animation].channels[i].timestamps[j + 1]) continue;
+			interpolation = (t - animations[animation].channels[i].timestamps[j])
+				/ (animations[animation].channels[i].timestamps[j + 1] - animations[animation].channels[i].timestamps[j]);
+			if(animations[animation].channels[i].target == model_channel_target::scaling)
 			{
-				interpolated_skeleton[animations[animation_idx].frame_skeleton[i].joint_idx].scale = vector<float32, 3>(
-					animations[animation_idx].frame_skeleton[i].frames[j].x * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].x * interpolation,
-					animations[animation_idx].frame_skeleton[i].frames[j].y * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].y * interpolation,
-					animations[animation_idx].frame_skeleton[i].frames[j].z * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].z * interpolation);
+				nodes[animations[animation].channels[i].node].scale = XMMatrixScaling(
+					animations[animation].channels[i].frames[j].x * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].x * interpolation,
+					animations[animation].channels[i].frames[j].y * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].y * interpolation,
+					animations[animation].channels[i].frames[j].z * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].z * interpolation);
 			}
-			else if(animations[animation_idx].frame_skeleton[i].frame_type == joint_frame_transform_type::rotating)
+			else if(animations[animation].channels[i].target == model_channel_target::rotating)
 			{
 				XMVECTOR joint0_orientation = XMVectorSet(
-					animations[animation_idx].frame_skeleton[i].frames[j].x,
-					animations[animation_idx].frame_skeleton[i].frames[j].y,
-					animations[animation_idx].frame_skeleton[i].frames[j].z,
-					animations[animation_idx].frame_skeleton[i].frames[j].w);
+					animations[animation].channels[i].frames[j].x,
+					animations[animation].channels[i].frames[j].y,
+					animations[animation].channels[i].frames[j].z,
+					animations[animation].channels[i].frames[j].w);
 				XMVECTOR joint1_orientation = XMVectorSet(
-					animations[animation_idx].frame_skeleton[i].frames[j + 1].x,
-					animations[animation_idx].frame_skeleton[i].frames[j + 1].y,
-					animations[animation_idx].frame_skeleton[i].frames[j + 1].z,
-					animations[animation_idx].frame_skeleton[i].frames[j + 1].w);
-				XMFLOAT4 v;
-				XMStoreFloat4(&v, XMQuaternionSlerp(joint0_orientation, joint1_orientation, interpolation));
-				interpolated_skeleton[animations[animation_idx].frame_skeleton[i].joint_idx].orientation = vector<float32, 4>(v.x, v.y, v.z, v.w);
+					animations[animation].channels[i].frames[j + 1].x,
+					animations[animation].channels[i].frames[j + 1].y,
+					animations[animation].channels[i].frames[j + 1].z,
+					animations[animation].channels[i].frames[j + 1].w);
+				XMVECTOR v = XMQuaternionSlerp(joint0_orientation, joint1_orientation, interpolation);
+				nodes[animations[animation].channels[i].node].rotation = XMMatrixRotationQuaternion(v);
 			}
-			else if(animations[animation_idx].frame_skeleton[i].frame_type == joint_frame_transform_type::translating)
+			else if(animations[animation].channels[i].target == model_channel_target::translating)
 			{
-				interpolated_skeleton[animations[animation_idx].frame_skeleton[i].joint_idx].position = vector<float32, 3>(
-					animations[animation_idx].frame_skeleton[i].frames[j].x * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].x * interpolation,
-					animations[animation_idx].frame_skeleton[i].frames[j].y * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].y * interpolation,
-					animations[animation_idx].frame_skeleton[i].frames[j].z * (1.0 - interpolation)
-					+ animations[animation_idx].frame_skeleton[i].frames[j + 1].z * interpolation);
+				nodes[animations[animation].channels[i].node].translation = XMMatrixTranslation(
+					animations[animation].channels[i].frames[j].x * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].x * interpolation,
+					animations[animation].channels[i].frames[j].y * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].y * interpolation,
+					animations[animation].channels[i].frames[j].z * (1.0 - interpolation)
+					+ animations[animation].channels[i].frames[j + 1].z * interpolation);
 			}
 			break;
 		}
 	}
-	for(uint64 k = 0; k < subsets.size; k++)
+	int32 node;
+	for(uint64 i = 0; i < nodes.size; i++)
 	{
-		for(uint64 i = 0; i < subsets[k].vertices.size; i++)
+		nodes[i].global_transform = nodes[i].scale * nodes[i].rotation * nodes[i].translation;
+		node = int32(i);
+		while(nodes[node].parent != not_exists<int32>)
 		{
-			world_vertex temp_vertex = subsets[k].vertices[i];
-			temp_vertex.point = vector<float32, 3>(0.0f, 0.0f, 0.0f);
-			temp_vertex.normal = vector<float32, 3>(0.0f, 0.0f, 0.0f);
-			for(uint32 j = 0; j < temp_vertex.weight_count; j++)
-			{
-				model_weight temp_weight = subsets[k].weights[temp_vertex.weight_idx + j];
-				model_joint temp_joint = interpolated_skeleton[temp_weight.joint_idx];
-				XMMATRIX rotation = XMMatrixRotationQuaternion(XMVectorSet(temp_joint.orientation.x, temp_joint.orientation.y, temp_joint.orientation.z, temp_joint.orientation.w)),
-					translation = XMMatrixTranslation(temp_joint.position.x, temp_joint.position.y, temp_joint.position.z);
-				XMVECTOR v = XMVector3TransformCoord(
-					XMVectorSet(subsets[k].vertices[i].point.x, subsets[k].vertices[i].point.y, subsets[k].vertices[i].point.z, 1.0f),
-					rotation * translation);
-				temp_vertex.point.x += v.m128_f32[0] * temp_weight.bias;
-				temp_vertex.point.y += v.m128_f32[1] * temp_weight.bias;
-				temp_vertex.point.z += v.m128_f32[2] * temp_weight.bias;
-			}
-			subsets[k].positions[i] = temp_vertex.point;
+			node = nodes[node].parent;
+			nodes[i].global_transform = nodes[i].global_transform * nodes[node].scale * nodes[node].rotation * nodes[node].translation;
 		}
-		array<world_vertex> transformed_vertices;
-		for(uint64 i = 0; i < subsets[k].vertices.size; i++)
-		{
-			transformed_vertices.push(subsets[k].vertices[i]);
-			transformed_vertices[i].point = subsets[k].positions[i];
-		}
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		HRESULT hr = device_context->Map(subsets[k].vertex_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-		memcpy(mapped.pData, transformed_vertices.addr, sizeof(world_vertex) * transformed_vertices.size);
-		device_context->Unmap(subsets[k].vertex_buffer, 0);
 	}
+	for(uint64 i = 0; i < joints.size; i++)
+		joints[i].final_transform = joints[i].inverse_bind_matrix * nodes[joints[i].node].global_transform * root_inverse_matrix;
 }

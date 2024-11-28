@@ -60,30 +60,7 @@ void flow_layout_evaluate_metrics(flow_layout_metrics *metrics)
 		for(uint64 i = 0; i < metrics->fl->frames.size; i++)
 		{
 			flf = &metrics->fl->frames[i];
-			if(metrics->fm.core->height_desc.type == adaptive_size_type::autosize
-				&& flf->fm.core->height_desc.type == adaptive_size_type::relative)
-			{
-				if(flf->fm.core->width_desc.type == adaptive_size_type::autosize)
-					size.x = flf->fm.core->max_width;
-				else size.x = uint32(flf->fm.core->width_desc.resolve(float32(metrics->viewport_width)));
-				size.x = min(max(flf->fm.core->min_width, size.x), flf->fm.core->max_width);
-				size.x -= uint32(flf->fm.core->margin_left.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->padding_left.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->margin_right.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->padding_right.resolve(float32(size.x)));
-				size.y = flf->fm.core->max_height;
-				size.y -= uint32(flf->fm.core->margin_bottom.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->padding_bottom.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->margin_top.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->padding_top.resolve(float32(size.y)));
-				size = flf->fm.core->content_size(flf->fm.core, size.x, size.y);
-				size = flf->fm.core->content_size_to_frame_size(size.x, size.y);
-				if(flf->fm.core->width_desc.type != adaptive_size_type::autosize)
-					size.x = uint32(flf->fm.core->width_desc.resolve(float32(metrics->viewport_width)));
-				size.x = min(max(flf->fm.core->min_width, size.x), flf->fm.core->max_width);
-				size.y = min(max(flf->fm.core->min_height, size.y), flf->fm.core->max_height);
-			}
-			else size = flf->fm.core->frame_size(flf->fm.object, metrics->viewport_width, metrics->viewport_height);
+			size = flf->fm.core->frame_size(flf->fm.object, metrics->viewport_width, metrics->viewport_height);
 			if(metrics->fl->multiline
 				&& i != end_idx
 				&& (flf->line_break
@@ -116,30 +93,7 @@ void flow_layout_evaluate_metrics(flow_layout_metrics *metrics)
 		for(uint64 i = 0; i < metrics->fl->frames.size; i++)
 		{
 			flf = &metrics->fl->frames[i];
-			if(metrics->fm.core->width_desc.type == adaptive_size_type::autosize
-				&& flf->fm.core->width_desc.type == adaptive_size_type::relative)
-			{
-				if(flf->fm.core->height_desc.type == adaptive_size_type::autosize)
-					size.y = flf->fm.core->max_height;
-				else size.y = uint32(flf->fm.core->height_desc.resolve(float32(metrics->viewport_height)));
-				size.y = min(max(flf->fm.core->min_height, size.y), flf->fm.core->max_height);
-				size.y -= uint32(flf->fm.core->margin_bottom.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->padding_bottom.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->margin_top.resolve(float32(size.y)))
-					+ uint32(flf->fm.core->padding_top.resolve(float32(size.y)));
-				size.x = flf->fm.core->max_width;
-				size.x -= uint32(flf->fm.core->margin_left.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->padding_left.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->margin_right.resolve(float32(size.x)))
-					+ uint32(flf->fm.core->padding_right.resolve(float32(size.x)));
-				size = flf->fm.core->content_size(flf->fm.core, size.x, size.y);
-				size = flf->fm.core->content_size_to_frame_size(size.x, size.y);
-				if(flf->fm.core->height_desc.type != adaptive_size_type::autosize)
-					size.y = uint32(flf->fm.core->height_desc.resolve(float32(metrics->viewport_height)));
-				size.x = min(max(flf->fm.core->min_width, size.x), flf->fm.core->max_width);
-				size.y = min(max(flf->fm.core->min_height, size.y), flf->fm.core->max_height);
-			}
-			else size = flf->fm.core->frame_size(flf->fm.object, metrics->viewport_width, metrics->viewport_height);
+			size = flf->fm.core->frame_size(flf->fm.object, metrics->viewport_width, metrics->viewport_height);
 			if(metrics->fl->multiline
 				&& i != end_idx
 				&& (flf->line_break
@@ -372,7 +326,7 @@ void flow_layout_data::update_layout(handleable<frame> fm)
 	}
 }
 
-void flow_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void flow_layout_data::render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	rectangle<int32> content_viewport = fm.core->frame_content_viewport();
 	if(!fm.core->visible
@@ -380,7 +334,7 @@ void flow_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap
 		|| content_viewport.extent.y <= 0)
 		return;
 	update_layout(fm);
-	bp->push_scissor(content_viewport);
+	gd->push_scissor(content_viewport);
 	if(xscroll.data.content_size > xscroll.data.viewport_size)
 		xscroll.data.viewport_offset
 			= min(xscroll.data.viewport_offset, xscroll.data.content_size - xscroll.data.viewport_size);
@@ -399,11 +353,11 @@ void flow_layout_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap
 			&& frames[i].fm.core->y < content_viewport.position.y + content_viewport.extent.y
 			&& frames[i].fm.core->y + int32(frames[i].fm.core->height)
 				>= content_viewport.position.y)
-			frames[i].fm.core->render(frames[i].fm.core, bp, bmp);
+			frames[i].fm.core->render(frames[i].fm.core, gd, bmp);
 	}
-	bp->pop_scissor();
-	xscroll.fm.render(&xscroll.fm, bp, bmp);
-	yscroll.fm.render(&yscroll.fm, bp, bmp);
+	gd->pop_scissor();
+	xscroll.fm.render(&xscroll.fm, gd, bmp);
+	yscroll.fm.render(&yscroll.fm, gd, bmp);
 }
 
 void flow_layout_data::mouse_wheel_rotate(handleable<frame> fm)
@@ -433,11 +387,11 @@ vector<uint32, 2> flow_layout_content_size(indefinite<frame> fm, uint32 viewport
 	return fl->data.content_size(handleable<frame>(fl, &fl->fm), viewport_width, viewport_height);
 }
 
-void flow_layout_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void flow_layout_render(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	flow_layout *fl = (flow_layout *)(fm.addr);
-	fl->model.render(handleable<frame>(fl, &fl->fm), bp, bmp);
-	fl->data.render(handleable<frame>(fl, &fl->fm), bp, bmp);
+	fl->model.render(handleable<frame>(fl, &fl->fm), gd, bmp);
+	fl->data.render(handleable<frame>(fl, &fl->fm), gd, bmp);
 }
 
 void flow_layout_mouse_wheel_rotate(indefinite<frame> fm)
@@ -452,7 +406,7 @@ flow_layout::flow_layout()
 	fm.subframes = flow_layout_subframes;
 	fm.content_size = flow_layout_content_size;
 	fm.render = flow_layout_render;
-	fm.mouse_wheel_rotate.callbacks.push(flow_layout_mouse_wheel_rotate);
+	fm.mouse_wheel_rotate.callbacks.push_moving(flow_layout_mouse_wheel_rotate);
 	data.initialize(handleable<frame>(this, &fm));
 	model.initialize(handleable<frame>(this, &fm));
 }

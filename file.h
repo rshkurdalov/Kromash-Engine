@@ -18,6 +18,7 @@ struct file
 	void *handler;
 
 	file();
+	~file();
 	/*Return if path contained in filename exists*/
 	bool exists();
 	/*Try to open file with read_access and write_access attributes
@@ -38,4 +39,6 @@ struct file
 	uint64 write(void *addr, uint64 bytes_size);
 	/*Remove file from filesystem*/
 	bool remove();
+	/*Move/rename file*/
+	bool move(u16string &new_path);
 };

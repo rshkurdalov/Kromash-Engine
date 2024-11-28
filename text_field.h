@@ -26,7 +26,7 @@ struct text_field_data
 	void scroll_to_caret(handleable<frame> fm);
 	void subframes(handleable<frame> fm, array<handleable<frame> > *frames);
 	vector<uint32, 2> content_size(handleable<frame> fm, uint32 viewport_width, uint32 viewport_height);
-	void render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp);
+	void render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp);
 	void mouse_click(handleable<frame> fm);
 	void mouse_move(handleable<frame> fm);
 	void focus_receive(handleable<frame> fm);
@@ -42,7 +42,7 @@ struct text_field_model
 	vector<uint32, 2> rendering_size;
 
 	void initialize(handleable<frame> fm);
-	void render(handleable<frame> fm, text_field_data *data, bitmap_processor *bp, bitmap *bmp);
+	void render(handleable<frame> fm, text_field_data *data, graphics_displayer *gd, bitmap *bmp);
 };
 
 struct text_field

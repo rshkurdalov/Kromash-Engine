@@ -2,8 +2,6 @@
 #include "hardware.h"
 #include "os_api.h"
 #include "gltf.h"
-#include "WICTextureLoader.h"
-#include "DDSTextureLoader.h"
 #include <thread>
 #pragma comment(lib, "d3d11.lib")
 #pragma comment(lib, "D3DCompiler.lib")
@@ -16,12 +14,19 @@ world::world()
 	render_target_view = nullptr;
 	depth_stencil_view = nullptr;
 	depth_stencil_buffer = nullptr;
+	cb_handler = nullptr;
+	cb_joints_handler = nullptr;
 	vertex_layout = nullptr;
-	cbPerObjectBuffer = nullptr;
+	sampler_state = nullptr;
+
 	vertex_shader_buffer = nullptr;
 	vertex_shader = nullptr;
 	pixel_shader_buffer = nullptr;
 	pixel_shader = nullptr;
+
+	render_target = nullptr;
+	rt_view = nullptr;
+	rt_shader_resource_view = nullptr;
 	
 	ui_vertex_shader_buffer = nullptr;
 	ui_vertex_shader = nullptr;
@@ -50,6 +55,8 @@ world::~world()
 {
 	release_common_resources();
 	release_ui_resources();
+	release_outline_resources();
+	release_sky_resources();
 }
 
 void world::initialize_common_resources()
@@ -59,49 +66,49 @@ void world::initialize_common_resources()
 	width = uint32(rect.right - rect.left);
 	height = uint32(rect.bottom - rect.top);
 
-	DXGI_MODE_DESC bufferDesc;
-    ZeroMemory(&bufferDesc, sizeof(DXGI_MODE_DESC));
-    bufferDesc.Width = width;
-    bufferDesc.Height = height;
-    bufferDesc.RefreshRate.Numerator = 60;
-    bufferDesc.RefreshRate.Denominator = 1;
-    bufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    bufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-    bufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
+	DXGI_MODE_DESC buffer_desc;
+    ZeroMemory(&buffer_desc, sizeof(DXGI_MODE_DESC));
+    buffer_desc.Width = width;
+    buffer_desc.Height = height;
+    buffer_desc.RefreshRate.Numerator = 60;
+    buffer_desc.RefreshRate.Denominator = 1;
+    buffer_desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    buffer_desc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+    buffer_desc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
 
-    DXGI_SWAP_CHAIN_DESC swapChainDesc; 
-    ZeroMemory(&swapChainDesc, sizeof(DXGI_SWAP_CHAIN_DESC));
-    swapChainDesc.BufferDesc = bufferDesc;
-    swapChainDesc.SampleDesc.Count = 1;
-    swapChainDesc.SampleDesc.Quality = 0;
-    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    swapChainDesc.BufferCount = 1;
-    swapChainDesc.OutputWindow = HWND(wnd->handler); 
-    swapChainDesc.Windowed = TRUE; 
-    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    DXGI_SWAP_CHAIN_DESC swap_chain_desc; 
+    ZeroMemory(&swap_chain_desc, sizeof(DXGI_SWAP_CHAIN_DESC));
+    swap_chain_desc.BufferDesc = buffer_desc;
+    swap_chain_desc.SampleDesc.Count = 1;
+    swap_chain_desc.SampleDesc.Quality = 0;
+    swap_chain_desc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swap_chain_desc.BufferCount = 1;
+    swap_chain_desc.OutputWindow = HWND(wnd->handler); 
+    swap_chain_desc.Windowed = TRUE; 
+    swap_chain_desc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
     D3D11CreateDeviceAndSwapChain(NULL, D3D_DRIVER_TYPE_HARDWARE, NULL, NULL, NULL, NULL,
-        D3D11_SDK_VERSION, &swapChainDesc, &swap_chain, &device, NULL, &device_context);
+        D3D11_SDK_VERSION, &swap_chain_desc, &swap_chain, &device, NULL, &device_context);
 
-	ID3D11Texture2D* BackBuffer;
-    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)(&BackBuffer));
-    device->CreateRenderTargetView(BackBuffer, NULL, &render_target_view);
-    BackBuffer->Release();
+	ID3D11Texture2D *buffer;
+    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)(&buffer));
+    device->CreateRenderTargetView(buffer, NULL, &render_target_view);
+    buffer->Release();
 
-	D3D11_TEXTURE2D_DESC depthStencilDesc;
-    depthStencilDesc.Width = bufferDesc.Width;
-    depthStencilDesc.Height = bufferDesc.Height;
-    depthStencilDesc.MipLevels = 1;
-    depthStencilDesc.ArraySize = 1;
-    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthStencilDesc.SampleDesc.Count = 1;
-    depthStencilDesc.SampleDesc.Quality = 0;
-    depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depthStencilDesc.CPUAccessFlags = 0; 
-    depthStencilDesc.MiscFlags = 0;
+	D3D11_TEXTURE2D_DESC depth_stencil_desc;
+    depth_stencil_desc.Width = buffer_desc.Width;
+    depth_stencil_desc.Height = buffer_desc.Height;
+    depth_stencil_desc.MipLevels = 1;
+    depth_stencil_desc.ArraySize = 1;
+    depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depth_stencil_desc.SampleDesc.Count = 1;
+    depth_stencil_desc.SampleDesc.Quality = 0;
+    depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
+    depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depth_stencil_desc.CPUAccessFlags = 0; 
+    depth_stencil_desc.MiscFlags = 0;
 
-    device->CreateTexture2D(&depthStencilDesc, NULL, &depth_stencil_buffer);
+    device->CreateTexture2D(&depth_stencil_desc, NULL, &depth_stencil_buffer);
     device->CreateDepthStencilView(depth_stencil_buffer, NULL, &depth_stencil_view);
 
 	D3D11_BUFFER_DESC cbbd;    
@@ -111,9 +118,20 @@ void world::initialize_common_resources()
     cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbbd.CPUAccessFlags = 0;
     cbbd.MiscFlags = 0;
-	device->CreateBuffer(&cbbd, NULL, &cbPerObjectBuffer);
+	device->CreateBuffer(&cbbd, NULL, &cb_handler);
+   
+    ZeroMemory(&cbbd, sizeof(D3D11_BUFFER_DESC));
+    cbbd.Usage = D3D11_USAGE_DEFAULT;
+    cbbd.ByteWidth = sizeof(constant_buffer_joints);
+    cbbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    cbbd.CPUAccessFlags = 0;
+    cbbd.MiscFlags = 0;
+	device->CreateBuffer(&cbbd, NULL, &cb_joints_handler);
 
-	D3DCompileFromFile(L"content\\shader.fx", 0, 0, "vertex_shader", "vs_5_0", 0, 0, &vertex_shader_buffer, 0);
+	ID3DBlob *err;
+	char *str;
+	D3DCompileFromFile(L"content\\shader.fx", 0, 0, "vertex_shader", "vs_5_0", 0, 0, &vertex_shader_buffer, &err);
+	if(err) str = (char *)err->GetBufferPointer();
     D3DCompileFromFile(L"content\\shader.fx", 0, 0, "pixel_shader", "ps_5_0", 0, 0, &pixel_shader_buffer, 0);
     device->CreateVertexShader(vertex_shader_buffer->GetBufferPointer(), vertex_shader_buffer->GetBufferSize(), NULL, &vertex_shader);
     device->CreatePixelShader(pixel_shader_buffer->GetBufferPointer(), pixel_shader_buffer->GetBufferSize(), NULL, &pixel_shader);
@@ -123,7 +141,8 @@ void world::initialize_common_resources()
 		{"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
 		{"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 20, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0}
+		{"JOINTS", 0, DXGI_FORMAT_R32G32B32A32_SINT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0},
+		{"WEIGHTS", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 48, D3D11_INPUT_PER_VERTEX_DATA, 0}
 	};
 	UINT numElements = array_size(layout);
 	device->CreateInputLayout(
@@ -133,50 +152,43 @@ void world::initialize_common_resources()
 		vertex_shader_buffer->GetBufferSize(),
 		&vertex_layout);
 
-	D3D11_SAMPLER_DESC sampDesc;
-	ZeroMemory(&sampDesc, sizeof(sampDesc));
-	sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-	sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-	sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-	device->CreateSamplerState(&sampDesc, &sampler_state);
+	D3D11_SAMPLER_DESC samp_desc;
+	ZeroMemory(&samp_desc, sizeof(samp_desc));
+	samp_desc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	samp_desc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+	samp_desc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    samp_desc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    samp_desc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    samp_desc.MinLOD = 0;
+    samp_desc.MaxLOD = D3D11_FLOAT32_MAX;
+	device->CreateSamplerState(&samp_desc, &sampler_state);
 
-    D3D11_SHADER_RESOURCE_VIEW_DESC shaderResourceViewDesc;
-
-    ///////////////////////// Map's Texture
-    // Initialize the  texture description.
-
-    // Setup the texture description.
-    // We will have our map be a square
-    // We will need to have this texture bound as a render target AND a shader resource
-	D3D11_TEXTURE2D_DESC textureDesc;
-    ZeroMemory(&textureDesc, sizeof(textureDesc));
-    textureDesc.Width = width;
-    textureDesc.Height = height;
-    textureDesc.MipLevels = 1;
-    textureDesc.ArraySize = 1;
-    textureDesc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-    textureDesc.SampleDesc.Count = 1;
-    textureDesc.Usage = D3D11_USAGE_DEFAULT;
-    textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-    textureDesc.CPUAccessFlags = 0;
-    textureDesc.MiscFlags = 0;
-    device->CreateTexture2D(&textureDesc, NULL, &render_target);
+    D3D11_SHADER_RESOURCE_VIEW_DESC shader_resource_view_desc;
+	D3D11_TEXTURE2D_DESC texture_desc;
+    ZeroMemory(&texture_desc, sizeof(texture_desc));
+    texture_desc.Width = width;
+    texture_desc.Height = height;
+    texture_desc.MipLevels = 1;
+    texture_desc.ArraySize = 1;
+    texture_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    texture_desc.SampleDesc.Count = 1;
+    texture_desc.Usage = D3D11_USAGE_DEFAULT;
+    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    texture_desc.CPUAccessFlags = 0;
+    texture_desc.MiscFlags = 0;
+    device->CreateTexture2D(&texture_desc, NULL, &render_target);
 	
-    D3D11_RENDER_TARGET_VIEW_DESC renderTargetViewDesc;
-    renderTargetViewDesc.Format = textureDesc.Format;
-    renderTargetViewDesc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    renderTargetViewDesc.Texture2D.MipSlice = 0;
-    device->CreateRenderTargetView(render_target, &renderTargetViewDesc, &rt_view);
+    D3D11_RENDER_TARGET_VIEW_DESC render_target_view_desc;
+    render_target_view_desc.Format = texture_desc.Format;
+    render_target_view_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    render_target_view_desc.Texture2D.MipSlice = 0;
+    device->CreateRenderTargetView(render_target, &render_target_view_desc, &rt_view);
 
-	shaderResourceViewDesc.Format = textureDesc.Format;
-    shaderResourceViewDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-    shaderResourceViewDesc.Texture2D.MostDetailedMip = 0;
-    shaderResourceViewDesc.Texture2D.MipLevels = 1;
-    device->CreateShaderResourceView(render_target, &shaderResourceViewDesc, &rt_shader_resource_view);
+	shader_resource_view_desc.Format = texture_desc.Format;
+    shader_resource_view_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shader_resource_view_desc.Texture2D.MostDetailedMip = 0;
+    shader_resource_view_desc.Texture2D.MipLevels = 1;
+    device->CreateShaderResourceView(render_target, &shader_resource_view_desc, &rt_shader_resource_view);
 }
 
 void world::initialize_ui_resources()
@@ -316,7 +328,7 @@ void world::initialize_sky_resources()
     device->CreateVertexShader(sky.vertex_shader_buffer->GetBufferPointer(), sky.vertex_shader_buffer->GetBufferSize(), NULL, &sky.vertex_shader);
     device->CreatePixelShader(sky.pixel_shader_buffer->GetBufferPointer(), sky.pixel_shader_buffer->GetBufferSize(), NULL, &sky.pixel_shader);
 
-	CreateDDSTextureFromFile(
+	os_create_dds_texture_from_file(
 		device,
 		L"content\\skymap.dds",
 		&sky.sky_tv.texture,
@@ -344,8 +356,11 @@ void world::release_common_resources()
 	depth_stencil_view = nullptr;
 	if(depth_stencil_buffer != nullptr) depth_stencil_buffer->Release();
 	depth_stencil_buffer = nullptr;
-	if(cbPerObjectBuffer != nullptr) cbPerObjectBuffer->Release();
-	cbPerObjectBuffer = nullptr;
+	if(cb_handler != nullptr) cb_handler->Release();
+	cb_handler = nullptr;
+	if(cb_joints_handler != nullptr) cb_joints_handler->Release();
+	cb_joints_handler = nullptr;
+
 	if(vertex_shader_buffer != nullptr) vertex_shader_buffer->Release();
 	vertex_shader_buffer = nullptr;
 	if(vertex_shader != nullptr) vertex_shader->Release();
@@ -358,6 +373,13 @@ void world::release_common_resources()
 	vertex_layout = nullptr;
 	if(sampler_state != nullptr) sampler_state->Release();
 	sampler_state = nullptr;
+
+	if(render_target != nullptr) render_target->Release();
+	render_target = nullptr;
+	if(rt_view != nullptr) rt_view->Release();
+	rt_view = nullptr;
+	if(rt_shader_resource_view != nullptr) rt_shader_resource_view->Release();
+	rt_shader_resource_view = nullptr;
 }
 
 void world::release_ui_resources()
@@ -511,7 +533,7 @@ void world::initialize_scene()
 	cube.indices.insert_range(0, cube_indices, cube_indices + array_size(cube_indices));
 	cube.initialize_render_resources(device);
 
-	CreateWICTextureFromFile(
+	os_create_texture_from_file(
 		device,
 		L"content\\braynzar.jpg",
 		&cube_tv.texture,
@@ -522,31 +544,23 @@ void world::initialize_scene()
 
 	models.push_default();
 	gltf model;
-	model.filename << u"A:\\Документы\\Shunior Engine\\content\\footman\\Footman_RIG.glb";
+	model.filename << u"A:\\Документы\\Kromash Engine\\content\\footman\\Footman_RIG.glb";
+	model.device = device;
 	model.model = &models[0];
 	model.load();
-	for(uint64 j = 0; j < models[0].subsets.size; j++)
-	{
-		models[0].subsets[j].initialize_render_resources(device);
-		CreateWICTextureFromMemory(
-			device,
-			models[0].subsets[j].material.image.addr,
-			models[0].subsets[j].material.image.size,
-			&models[0].subsets[j].material.tv.texture,
-			&models[0].subsets[j].material.tv.shader_resource_view);
-			models[0].subsets[j].material.image.reset();
-	}
+	models[0].reset_animation(0);
 
-	auto updater = [] () -> void
-	{
-		while(true)
+	hm.resize(1000, 1000);
+	hm.start_x = -500;
+	hm.start_z = -500;
+	hm.unit_size = 1.0f;
+	for(uint64 i = 0; i < hm.length; i++)
+		for(uint64 j = 0; j < hm.width; j++)
 		{
-			os_update_windows();
-			std::this_thread::sleep_for(std::chrono::milliseconds(16));
+			hm.map[i * hm.width + j].hole = false;
+			hm.map[i * hm.width + j].height = 0.0f;
 		}
-	};
-	std::thread tr(updater);
-	tr.detach();
+	hm.generate_model(device);
 }
 
 void world::mouse_click()
@@ -556,8 +570,7 @@ void world::mouse_click()
 
 void world::update_movement()
 {
-    XMMATRIX rotation;
-    rotation = XMMatrixRotationRollPitchYaw(movement.camera_pitch, movement.camera_yaw, 0);
+    XMMATRIX rotation = XMMatrixRotationRollPitchYaw(movement.camera_pitch, movement.camera_yaw, 0);
     movement.camera_right = XMVector3TransformCoord(movement.default_right, rotation);
     movement.camera_forward = XMVector3TransformCoord(movement.default_forward, rotation);
 
@@ -570,15 +583,22 @@ void world::update_movement()
     camera.position += move_right * movement.camera_right;
     camera.position += move_forward * movement.camera_forward;
 	
-	rotation = XMMatrixRotationRollPitchYaw(movement.camera_pitch, movement.camera_yaw, 0);
-    camera.target = XMVector3TransformCoord(movement.default_forward, rotation);
-    camera.target = XMVector3Normalize(camera.target);
-    camera.target = camera.position + camera.target;
-
-	rotation = XMMatrixRotationY(movement.camera_yaw);
-    camera.up = XMVector3TransformCoord(camera.up, rotation);
+    camera.target = camera.position + movement.camera_forward;
+    camera.up = XMVector3Cross(movement.camera_forward, movement.camera_right);
 
     camera.view = XMMatrixLookAtLH(camera.position, camera.target, camera.up);
+}
+
+void world::update_fps()
+{
+	timestamp t = now() / 1000000000;
+	if(t != fps_second_accumulative)
+	{
+		fps_second_accumulative = t;
+		fps = fps_accumulative;
+		fps_accumulative = 1;
+	}
+	else fps_accumulative++;
 }
 
 void world::resize()
@@ -588,24 +608,55 @@ void world::resize()
 	depth_stencil_buffer->Release();
 	depth_stencil_view->Release();
 	swap_chain->ResizeBuffers(0, width, height, DXGI_FORMAT_UNKNOWN, 0);
-    ID3D11Texture2D *pBuffer;
-    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)(&pBuffer));
-    device->CreateRenderTargetView(pBuffer, NULL, &render_target_view);
-    pBuffer->Release();
-	D3D11_TEXTURE2D_DESC depthStencilDesc;
-    depthStencilDesc.Width = width;
-    depthStencilDesc.Height = height;
-    depthStencilDesc.MipLevels = 1;
-    depthStencilDesc.ArraySize = 1;
-    depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-    depthStencilDesc.SampleDesc.Count = 1;
-    depthStencilDesc.SampleDesc.Quality = 0;
-    depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-    depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-    depthStencilDesc.CPUAccessFlags = 0; 
-    depthStencilDesc.MiscFlags = 0;
-    device->CreateTexture2D(&depthStencilDesc, NULL, &depth_stencil_buffer);
+    ID3D11Texture2D *buffer;
+    swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)(&buffer));
+    device->CreateRenderTargetView(buffer, NULL, &render_target_view);
+    buffer->Release();
+	D3D11_TEXTURE2D_DESC depth_stencil_desc;
+    depth_stencil_desc.Width = width;
+    depth_stencil_desc.Height = height;
+    depth_stencil_desc.MipLevels = 1;
+    depth_stencil_desc.ArraySize = 1;
+    depth_stencil_desc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    depth_stencil_desc.SampleDesc.Count = 1;
+    depth_stencil_desc.SampleDesc.Quality = 0;
+    depth_stencil_desc.Usage = D3D11_USAGE_DEFAULT;
+    depth_stencil_desc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    depth_stencil_desc.CPUAccessFlags = 0; 
+    depth_stencil_desc.MiscFlags = 0;
+    device->CreateTexture2D(&depth_stencil_desc, NULL, &depth_stencil_buffer);
     device->CreateDepthStencilView(depth_stencil_buffer, NULL, &depth_stencil_view);
+
+	render_target->Release();
+	rt_view->Release();
+	rt_shader_resource_view->Release();
+
+	D3D11_SHADER_RESOURCE_VIEW_DESC shader_resource_view_desc;
+	D3D11_TEXTURE2D_DESC texture_desc;
+    ZeroMemory(&texture_desc, sizeof(texture_desc));
+    texture_desc.Width = width;
+    texture_desc.Height = height;
+    texture_desc.MipLevels = 1;
+    texture_desc.ArraySize = 1;
+    texture_desc.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    texture_desc.SampleDesc.Count = 1;
+    texture_desc.Usage = D3D11_USAGE_DEFAULT;
+    texture_desc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    texture_desc.CPUAccessFlags = 0;
+    texture_desc.MiscFlags = 0;
+    device->CreateTexture2D(&texture_desc, NULL, &render_target);
+
+    D3D11_RENDER_TARGET_VIEW_DESC render_target_view_desc;
+    render_target_view_desc.Format = texture_desc.Format;
+    render_target_view_desc.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    render_target_view_desc.Texture2D.MipSlice = 0;
+    device->CreateRenderTargetView(render_target, &render_target_view_desc, &rt_view);
+
+	shader_resource_view_desc.Format = texture_desc.Format;
+    shader_resource_view_desc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    shader_resource_view_desc.Texture2D.MostDetailedMip = 0;
+    shader_resource_view_desc.Texture2D.MipLevels = 1;
+    device->CreateShaderResourceView(render_target, &shader_resource_view_desc, &rt_shader_resource_view);
 
 	release_ui_resources();
 	initialize_ui_resources();
@@ -615,6 +666,52 @@ void world::resize()
 		float32(width) / float32(height),
 		1.0f,
 		1000.0f);
+}
+
+void world::render_heightmap()
+{
+	ID3D11RasterizerState *rs;
+	D3D11_RASTERIZER_DESC rs_desc;
+	rs_desc.AntialiasedLineEnable = false;
+	rs_desc.CullMode = D3D11_CULL_BACK;
+	rs_desc.DepthBias = 0;
+	rs_desc.DepthBiasClamp = 0.0f;
+	rs_desc.DepthClipEnable = true;
+	rs_desc.FillMode = D3D11_FILL_SOLID;
+	rs_desc.FrontCounterClockwise = false;
+	rs_desc.MultisampleEnable = false;
+	rs_desc.ScissorEnable = false;
+	rs_desc.SlopeScaledDepthBias = 0.0f;
+	device->CreateRasterizerState(&rs_desc, &rs);
+	device_context->RSSetState(rs);
+	rs->Release();
+
+	device_context->VSSetShader(vertex_shader, 0, 0);
+    device_context->PSSetShader(pixel_shader, 0, 0);
+    device_context->IASetInputLayout(vertex_layout);
+    device_context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    uint32 offset = 0;
+	uint32 stride = sizeof(world_vertex);
+    device_context->IASetVertexBuffers(0, 1, &hm.map_model.vertex_buffer, &stride, &offset);
+    device_context->IASetIndexBuffer(hm.map_model.index_buffer, DXGI_FORMAT_R32_UINT, 0);
+	cb.world = XMMatrixIdentity();
+    cb.wvp = cb.world * camera.view * camera.projection;
+    cb.wvp = XMMatrixTranspose(cb.wvp);
+	cb.animated = 0;
+	cb.pbr = 0;
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetShaderResources(0, 1, &cube_tv.shader_resource_view);
+    device_context->PSSetSamplers(0, 1, &sampler_state);
+    device_context->OMSetDepthStencilState(nullptr, 0);
+	cb.manual_uv = 0;
+	device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+	device_context->DrawIndexed(hm.map_model.indices.size, 0, 0);
+	/*for(uint64 i = 0; i < hm.length - 1; i++)
+	{
+		for(uint64 j = 0; j < hm.width - 1; j++)
+			device_context->DrawIndexed(6, (i * (width - 1) + j) * 6, 0);
+	}*/
 }
 
 void world::render_sky()
@@ -647,11 +744,13 @@ void world::render_sky()
 		* XMMatrixTranslation(XMVectorGetX(camera.position), XMVectorGetY(camera.position), XMVectorGetZ(camera.position));
     cb.wvp = sky.sphereWorld * camera.view * camera.projection;
     cb.wvp = XMMatrixTranspose(cb.wvp);
-    cb.world = XMMatrixTranspose(sky.sphereWorld);    
-    device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-    device_context->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-	device_context->PSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-    device_context->PSSetShaderResources(0, 1, &sky.sky_tv.shader_resource_view);
+    cb.world = XMMatrixTranspose(sky.sphereWorld);
+	cb.animated = 0;
+	cb.manual_uv = 0;
+    device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
+    device_context->PSSetShaderResources(4, 1, &sky.sky_tv.shader_resource_view);
     device_context->PSSetSamplers(0, 1, &sampler_state);
     device_context->OMSetDepthStencilState(sky.depth_stencil, 0);
     device_context->DrawIndexed(sky.sphere.indices.size, 0, 0);
@@ -683,34 +782,53 @@ void world::render_objects()
 	uint32 stride = sizeof(world_vertex);
     device_context->IASetVertexBuffers(0, 1, &cube.vertex_buffer, &stride, &offset);
     device_context->IASetIndexBuffer(cube.index_buffer, DXGI_FORMAT_R32_UINT, 0);
-    cb.wvp = XMMatrixTranslation(15.0f, 0.0f, 0.0f) * camera.view * camera.projection;
+	cb.world = XMMatrixTranslation(0.0f, 0.0f, 15.0f);
+    cb.wvp = cb.world * camera.view * camera.projection;
     cb.wvp = XMMatrixTranspose(cb.wvp);
-    device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-    device_context->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-	device_context->PSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+	cb.animated = 0;
+	cb.manual_uv = 0;
+	cb.pbr = 0;
+    device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
 	device_context->PSSetShaderResources(0, 1, &cube_tv.shader_resource_view);
     device_context->PSSetSamplers(0, 1, &sampler_state);
     device_context->OMSetDepthStencilState(nullptr, 0);
     device_context->DrawIndexed(cube.indices.size, 0, 0);
 
-	float32 t = float32(float64(now() - models[0].animations[0].start_animation_time) / 1000000000.0);
-	if(t >= models[0].animations[0].total_animation_time)
-	{
-		models[0].animations[0].start_animation_time = now();
-		t = 0.0f;
-	}
-	models[0].run_animation(device_context, 0, t);
-
+	models[0].play_animation(0);
+	cb.animated = 1;
 	for(uint64 i = 0; i < models.size; i++)
 	{
+		for(uint64 j = 0; j < models[i].joints.size; j++)
+			cb_joints.final_transform[j] = XMMatrixTranspose(models[i].joints[j].final_transform);
+		device_context->UpdateSubresource(cb_joints_handler, 0, NULL, &cb_joints, 0, 0);
+		device_context->VSSetConstantBuffers(1, 1, &cb_joints_handler);
 		for(uint64 j = 0; j < models[i].subsets.size; j++)
 		{
 			device_context->IASetVertexBuffers(0, 1, &models[i].subsets[j].vertex_buffer, &stride, &offset);
 			device_context->IASetIndexBuffer(models[i].subsets[j].index_buffer, DXGI_FORMAT_R32_UINT, 0);
+			cb.world = XMMatrixIdentity();
 			cb.wvp = camera.view * camera.projection;
 			cb.wvp = XMMatrixTranspose(cb.wvp);
-			device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-			device_context->PSSetShaderResources(0, 1, &models[i].subsets[j].material.tv.shader_resource_view);
+			if(models[i].subsets[j].material.base_color_texture != not_exists<uint64>
+				&& models[i].subsets[j].material.metallic_texture != not_exists<uint64>
+				&& models[i].subsets[j].material.normal_texture != not_exists<uint64>)
+			{
+				cb.pbr = 1;
+				cb.metallic_factor = models[i].subsets[j].material.metallic_factor * 0.5f;
+				cb.roughness_factor = models[i].subsets[j].material.roughness_factor * 0.5f;
+				cb.baseColorFactor = models[i].subsets[j].material.base_color_factor;
+				device_context->PSSetShaderResources(0, 1, &models[i].textures[models[i].subsets[j].material.base_color_texture].shader_resource_view);
+				device_context->PSSetShaderResources(1, 1, &models[i].textures[models[i].subsets[j].material.metallic_texture].shader_resource_view);
+				device_context->PSSetShaderResources(2, 1, &models[i].textures[models[i].subsets[j].material.normal_texture].shader_resource_view);
+			}
+			else
+			{
+				cb.pbr = 0;
+				device_context->PSSetShaderResources(0, 1, &models[i].textures[models[i].subsets[j].material.base_color_texture].shader_resource_view);
+			}
+			device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
 			device_context->DrawIndexed(models[i].subsets[j].indices.size, 0, 0);
 		}
 	}
@@ -745,11 +863,14 @@ void world::render_outline()
 	uint32 stride = sizeof(world_vertex);
     device_context->IASetVertexBuffers(0, 1, &cube.vertex_buffer, &stride, &offset);
     device_context->IASetIndexBuffer(cube.index_buffer, DXGI_FORMAT_R32_UINT, 0);
-    cb.wvp = camera.view * camera.projection;
+	cb.world = XMMatrixTranslation(0.0f, 0.0f, 15.0f);
+    cb.wvp = cb.world * camera.view * camera.projection;
     cb.wvp = XMMatrixTranspose(cb.wvp);
-    device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-    device_context->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-	device_context->PSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+	cb.animated = 0;
+	cb.manual_uv = 0;
+    device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
     device_context->PSSetSamplers(0, 1, &sampler_state);
     device_context->OMSetDepthStencilState(nullptr, 0);
     device_context->DrawIndexed(cube.indices.size, 0, 0);
@@ -763,13 +884,14 @@ void world::render_outline()
 	stride = sizeof(world_vertex);
     device_context->IASetVertexBuffers(0, 1, &uiwo.vertex_buffer, &stride, &offset);
     device_context->IASetIndexBuffer(uiwo.index_buffer, DXGI_FORMAT_R32_UINT, 0);
-    cb.wvp = camera.view * camera.projection;
+	cb.world = XMMatrixTranslation(0.0f, 0.0f, 15.0f);
+    cb.wvp = cb.world * camera.view * camera.projection;
     cb.wvp = XMMatrixTranspose(cb.wvp);
 	cb.color = vector<float32, 4>(1.0f, 0.0f, 1.0f, 1.0f);
 	cb.radius = 10;
-    device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-    device_context->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-	device_context->PSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+    device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
 	device_context->PSSetShaderResources(0, 1, &rt_shader_resource_view);
     device_context->PSSetSamplers(0, 1, &sampler_state);
     device_context->OMSetDepthStencilState(nullptr, 0);
@@ -845,38 +967,44 @@ void world::render_outline()
 	}*/
 }
 
-void world::render_ui(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void world::render_ui(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	world_frame *wf = (world_frame *)(fm.object.addr);
 	layout.core->x = wf->fm.x;
 	layout.core->y = wf->fm.y;
 	layout.core->width = wf->fm.width;
 	layout.core->height = wf->fm.height;
-	layout.core->render(layout.object, bp, bmp);
+	layout.core->render(layout.object, gd, bmp);
 
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	device_context->Map(ui_texture, 0, D3D11_MAP::D3D11_MAP_WRITE_DISCARD, 0, &mapped);
-	alpha_color *src = bmp->data, *dest = (alpha_color *)(mapped.pData), *dest_prev = dest;
+	alpha_color *src = bmp->data, *dest = (alpha_color *)(mapped.pData), *dest_prev;
 	vector<int32, 2> position = os_window_content_position(wnd);
-	vector<uint32, 2> size = os_window_content_size(wnd),
-		screen_size = os_screen_size();
-	uint64 bmp_idx;
-	for(int32 ys = position.y; ys < position.y + int32(size.y); ys++)
+	vector<uint32, 2> size = os_window_content_size(wnd);
+	int32 xs, ys = position.y, xsize;
+	if(ys < 0)
 	{
-		for(int64 xs = position.x; xs < position.x + int32(size.x); xs++)
+		shift_addr(&dest, int64(mapped.RowPitch * uint32(-ys)));
+		ys = 0;
+	}
+	dest_prev = dest;
+	while(ys < min(position.y + int32(size.y), int32(bmp->height)))
+	{
+		xs = position.x;
+		xsize = size.x;
+		if(xs < 0)
 		{
-			bmp_idx = (bmp->height - 1 - ys) * int32(bmp->width) + xs;
-			if(bmp_idx < 0 || bmp_idx >= int32(screen_size.x * screen_size.y))
-			{
-				dest++;
-				continue;
-			}
-			*dest = bmp->data[bmp_idx];
-			dest++;
+			shift_addr(&dest, int64((-xs) * sizeof(alpha_color)));
+			xsize += xs;
+			xs = 0;
 		}
+		xsize = min(xsize, int32(bmp->width) - xs);
+		if(xsize > 0)
+			copy_memory(bmp->data + (bmp->height - 1 - ys) * int32(bmp->width) + xs, dest, uint64(xsize * sizeof(alpha_color)));
 		dest = dest_prev;
-		move_addr(&dest, mapped.RowPitch);
+		shift_addr(&dest, mapped.RowPitch);
 		dest_prev = dest;
+		ys++;
 	}
 	device_context->Unmap(ui_texture, 0);
 
@@ -906,16 +1034,18 @@ void world::render_ui(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
     device_context->IASetIndexBuffer(uiwo.index_buffer, DXGI_FORMAT_R32_UINT, 0);
     cb.wvp = camera.view * camera.projection;
     cb.wvp = XMMatrixTranspose(cb.wvp);
-    device_context->UpdateSubresource(cbPerObjectBuffer, 0, NULL, &cb, 0, 0);
-    device_context->VSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
-	device_context->PSSetConstantBuffers(0, 1, &cbPerObjectBuffer);
+	cb.animated = 0;
+	cb.manual_uv = 0;
+    device_context->UpdateSubresource(cb_handler, 0, NULL, &cb, 0, 0);
+    device_context->VSSetConstantBuffers(0, 1, &cb_handler);
+	device_context->PSSetConstantBuffers(0, 1, &cb_handler);
 	device_context->PSSetShaderResources(0, 1, &ui_srv);
     device_context->PSSetSamplers(0, 1, &sampler_state);
     device_context->OMSetDepthStencilState(nullptr, 0);
     device_context->DrawIndexed(uiwo.indices.size, 0, 0);
 }
 
-void world::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void world::render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	world_frame *wf = (world_frame *)(fm.object.addr);
 	if(width != wf->fm.width || height != wf->fm.height)
@@ -941,11 +1071,17 @@ void world::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
 	cb.width = width;
 	cb.height = height;
 
+	cb.light_dir = vector<float32, 3>(1.0f, 0.0f, 0.0f);
+	cb.light_color = vector<float32, 3>(1.0f, 1.0f, 1.0f);
+	cb.camera = vector<float32, 3>(camera.position.m128_f32[0], camera.position.m128_f32[1], camera.position.m128_f32[2]);
+
+	update_fps();
 	update_movement();
+	render_heightmap();
 	render_sky();
 	render_objects();
-	//render_outline();
-	render_ui(fm, bp, bmp);
+	render_outline();
+	render_ui(fm, gd, bmp);
     swap_chain->Present(0, 0);
 }
 
@@ -1006,10 +1142,10 @@ void world_frame_key_release(indefinite<frame> fm)
 		wf->wld.movement.move_left = false;
 }
 
-void world_frame_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void world_frame_render(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	world_frame *wf = (world_frame *)(fm.addr);
-	wf->wld.render(handleable<frame>(wf, &wf->fm), bp, bmp);
+	wf->wld.render(handleable<frame>(wf, &wf->fm), gd, bmp);
 }
 
 world_frame::world_frame()

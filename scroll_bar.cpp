@@ -106,14 +106,14 @@ void scroll_bar_model::initialize(handleable<frame> fm)
 	fm.core->return_mouse_wheel_rotate = true;
 }
 
-void scroll_bar_model::render(handleable<frame> fm, scroll_bar_data *data, bitmap_processor *bp, bitmap *bmp)
+void scroll_bar_model::render(handleable<frame> fm, scroll_bar_data *data, graphics_displayer *gd, bitmap *bmp)
 {
 	if(!fm.core->visible || data->viewport_size >= data->content_size) return;
 	rectangle<int32> content_viewport = fm.core->frame_content_viewport();
 	data->viewport_offset = min(data->viewport_offset, data->content_size - data->viewport_size);
 	rectangle<int32> slider_rect = data->slider_rectangle(fm);
-	bp->br.switch_solid_color(alpha_color(127, 127, 127, 255));
-	bp->fill_area(slider_rect, bmp);
+	gd->br.switch_solid_color(alpha_color(127, 127, 127, 255));
+	gd->fill_area(slider_rect, bmp);
 }
 
 bool scroll_bar_hit_test(indefinite<frame> fm, vector<int32, 2> point)
@@ -124,10 +124,10 @@ bool scroll_bar_hit_test(indefinite<frame> fm, vector<int32, 2> point)
 		vector<int32, 2>(sb->fm.width, sb->fm.height)).hit_test(point);
 }
 
-void scroll_bar_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void scroll_bar_render(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	scroll_bar *sb = (scroll_bar *)(fm.addr);
-	sb->model.render(handleable<frame>(sb, &sb->fm), &sb->data, bp, bmp);
+	sb->model.render(handleable<frame>(sb, &sb->fm), &sb->data, gd, bmp);
 }
 
 void scroll_bar_mouse_click(indefinite<frame> fm)
@@ -140,7 +140,7 @@ scroll_bar::scroll_bar()
 {
 	fm.hit_test = scroll_bar_hit_test;
 	fm.render = scroll_bar_render;
-	fm.mouse_click.callbacks.push(scroll_bar_mouse_click);
+	fm.mouse_click.callbacks.push_moving(scroll_bar_mouse_click);
 	data.initialize(handleable<frame>(this, &fm));
 	model.initialize(handleable<frame>(this, &fm));
 }

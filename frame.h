@@ -32,7 +32,7 @@ struct frame
 	bool (*hit_test)(indefinite<frame> fm, vector<int32, 2> point);
 	void (*subframes)(indefinite<frame> fm, array<handleable<frame>> *frames);
 	vector<uint32, 2> (*content_size)(indefinite<frame> fm, uint32 viewport_width, uint32 viewport_height);
-	void (*render)(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp);
+	void (*render)(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp);
 	observer<indefinite<frame>> mouse_click;
 	bool hook_mouse_click;
 	bool return_mouse_click;

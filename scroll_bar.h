@@ -17,7 +17,7 @@ struct scroll_bar_data
 struct scroll_bar_model
 {
 	void initialize(handleable<frame> fm);
-	void render(handleable<frame> fm, scroll_bar_data *data, bitmap_processor *bp, bitmap *bmp);
+	void render(handleable<frame> fm, scroll_bar_data *data, graphics_displayer *gd, bitmap *bmp);
 };
 
 struct scroll_bar

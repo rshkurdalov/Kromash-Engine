@@ -426,9 +426,9 @@ void text_layout_render_glyph_def(
 	bitmap *bmp) //!!!
 {
 	/*bitmap_processor bp;
-	bp.transform = translate_matrix(float32(point.x), float32(point.y));
-	bp.set_solid_color_brush(alpha_color(0, 0, 0, 255));
-	bp.render(gl.data->path, bmp);
+	gd.transform = translate_matrix(float32(point.x), float32(point.y));
+	gd.set_solid_color_brush(alpha_color(0, 0, 0, 255));
+	gd.render(gl.data->path, bmp);
 	rectangle<float32> rect;
 	geometry_path rect_path;
 	if(gl.underlined)
@@ -440,8 +440,8 @@ void text_layout_render_glyph_def(
 			float32(gl.data->advance.x),
 			float32(gl.data->underline_size));
 		rect_path.push_rectangle(rect);
-		bp.transform = translate_matrix(point.x, point.y);
-		bp.render(rect_path, bmp);
+		gd.transform = translate_matrix(point.x, point.y);
+		gd.render(rect_path, bmp);
 		rect_path.data.clear();
 	}
 	if(gl.strikedthrough)
@@ -454,8 +454,8 @@ void text_layout_render_glyph_def(
 			float32(gl.data->strikethrough_size));
 		rect_path.data.clear();
 		rect_path.push_rectangle(rect);
-		bp.transform = translate_matrix(point.x, point.y);
-		bp.render(rect_path, bmp);
+		gd.transform = translate_matrix(point.x, point.y);
+		gd.render(rect_path, bmp);
 		rect_path.data.clear();
 	}*/
 }

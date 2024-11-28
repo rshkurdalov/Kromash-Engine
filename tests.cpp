@@ -8,6 +8,7 @@
 #include "fileset.h"
 #include "network.h"
 #include "geometry.h"
+#include "os_api.h"
 
 void test_array()
 {
@@ -181,9 +182,10 @@ void test_real()
 #include "window.h"
 #include "text_field.h"
 #include "flow_layout.h"
-#include "push_button.h"
+#include "button.h"
 #include "grid_layout.h"
 #include "world_frame.h"
+#include "image_view.h"
 
 void test_ui()
 {
@@ -199,6 +201,15 @@ void test_ui()
 		*tf7 = new text_field(),
 		*tf8 = new text_field();
 	push_button *pb = new push_button();
+	image_view *iv = new image_view();
+	iv->fm.width_desc = 1.0uirel;
+	iv->fm.height_desc = 1.0uirel;
+	u16string img_file(u"A:\\Документы\\Kromash Engine\\content\\icons\\8666721_rotate_ccw_icon.png");
+	bool result = os_load_image(img_file, &iv->image);
+	layout_button *lb = new layout_button();
+	lb->fm.width_desc = 1.0uirel;
+	lb->fm.height_desc = 1.0uirel;
+	lb->layout.data.frames.push(flow_layout_frame(handleable<frame>(&iv, &iv->fm)));
 
 	// fl
 
@@ -355,7 +366,7 @@ void test_ui()
 
 	tf2->fm.width_desc = 1.0uirel;
 	tf2->fm.height_desc = 1.0uirel;
-	//gl->data.frames.at(0, 2) = grid_layout_frame(handleable<frame>(tf2, &tf2->fm), horizontal_align::center, vertical_align::center);
+	gl->data.frames.at(0, 2) = grid_layout_frame(handleable<frame>(pb, &pb->fm), horizontal_align::center, vertical_align::center);
 
 	tf3->fm.width_desc = 1.0uirel;
 	tf3->fm.height_desc = 1.0uirel;
@@ -369,9 +380,7 @@ void test_ui()
 	tf5->fm.height_desc = 1.0uirel;
 	//gl->data.frames.at(1, 2) = grid_layout_frame(handleable<frame>(tf5, &tf5->fm), horizontal_align::center, vertical_align::center);
 
-	tf6->fm.width_desc = 1.0uirel;
-	tf6->fm.height_desc = 1.0uirel;
-	//gl->data.frames.at(2, 0) = grid_layout_frame(handleable<frame>(tf6, &tf6->fm), horizontal_align::center, vertical_align::center);
+	gl->data.frames.at(2, 0) = grid_layout_frame(handleable<frame>(lb, &lb->fm), horizontal_align::center, vertical_align::center);
 
 	/*tf7->fm.width_desc = 1.0uirel;
 	tf7->fm.height_desc = 1.0uirel;
@@ -467,8 +476,8 @@ void test_fileset()
 	};
 	fileset<int32> s;
 	u16string filename;
-	filename << u"C:\\Users\\rshkurdalov\\Downloads\\file2.fs";
-	s.create(filename);
+	s.storage.filename << u"C:\\Users\\rshkurdalov\\Downloads\\file2.fs";
+	s.open();
 	u16string str;
 	dump(s, &str);
 	s.insert(1);
@@ -478,11 +487,11 @@ void test_fileset()
 	s.insert(3);
 	s.insert(3);
 	dump(s, &str);
-	s.remove(key<int32>(3));
+	s.remove_value(key<int32>(3));
 	dump(s, &str);
 
 	s.insert(3);
-	s.remove(2);
+	s.remove_value(2);
 	dump(s, &str);
 
 	s.insert(2);
@@ -499,7 +508,7 @@ void test_fileset()
 	s.insert(2);
 	s.insert(3);
 	s.insert(0);
-	s.remove(2);
+	s.remove_value(2);
 	dump(s, &str);
 
 	s.close();
@@ -578,4 +587,146 @@ void test_json()
 
 	u8string json_str;
 	j.stringify(&json_str);
+}
+
+#include "database.h"
+void dump_db(database &db, u16string *str)
+{
+	for(uint64 i = 0; i < db.tables.size; i++)
+	{
+		*str << db.tables[i].name << u'\n';
+		for(uint64 j = 0; j < db.tables[i].fields.size; j++)
+			*str << db.tables[i].fields[j].name << u' ';
+		*str << u'\n';
+		db.query_rows(i, [&db, str, i] (void *row_data) -> row_action
+			{
+				array<data_field> columns;
+				db.split_row(i, row_data, &columns);
+				for(uint64 k = 0; k < columns.size; k++)
+				{
+					if(db.tables[i].fields[k].type == data_field_type::int8
+						|| db.tables[i].fields[k].type == data_field_type::int16
+						|| db.tables[i].fields[k].type == data_field_type::int32
+						|| db.tables[i].fields[k].type == data_field_type::int64)
+						*str << columns[k].i64value << u' ';
+					else if(db.tables[i].fields[k].type == data_field_type::uint8
+						|| db.tables[i].fields[k].type == data_field_type::uint16
+						|| db.tables[i].fields[k].type == data_field_type::uint32
+						|| db.tables[i].fields[k].type == data_field_type::uint64)
+						*str << columns[k].ui64value << u' ';
+					else if(db.tables[i].fields[k].type == data_field_type::float32
+						|| db.tables[i].fields[k].type == data_field_type::float64)
+						*str << columns[k].f64value << u' ';
+					else if(db.tables[i].fields[k].type == data_field_type::u8string)
+						*str << columns[k].u8str;
+					else if(db.tables[i].fields[k].type == data_field_type::u16string)
+						*str << columns[k].u16str;
+					else if(db.tables[i].fields[k].type == data_field_type::u32string)
+						*str << columns[k].u32str;
+				}
+				*str << u'\n';
+				return row_action::no_change;
+			});
+	}
+}
+void test_database()
+{
+	u16string name;
+	data_field_desc desc;
+	data_field field;
+	desc.count = 0;
+	database db;
+	db.path << u"A:\\Документы\\Kromash Engine\\db";
+	db.name << u"objects";
+	db_result dbr;
+	db.load(&dbr);
+
+	/*db.create(&dbr);
+	name <<= u"users";
+	db.create_table(name, &dbr);
+	desc.name << u"id";
+	desc.type = data_field_type::uint32;
+	desc.indexed = true;
+	field.i64value = int64(0);
+	db.add_column(0, 0, desc, field, &dbr);
+	desc.name <<= u"name";
+	desc.type = data_field_type::u16string;
+	desc.count = 50;
+	desc.indexed = false;
+	db.add_column(0, 1, desc, field, &dbr);*/
+
+#pragma pack(push, 1)
+	struct record
+	{
+		uint32 id;
+		uint32 age;
+		uint64 name_strlen;
+		char16 name[50];
+	};
+	record r;
+	/*r.id = 1;
+	r.name_strlen = array_size(u"Tom");
+	copy_memory(u"Tom", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 4;
+	r.name_strlen = array_size(u"Scott");
+	copy_memory(u"Scott", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 2;
+	r.name_strlen = array_size(u"Paul");
+	copy_memory(u"Paul", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 4;
+	r.name_strlen = array_size(u"Scott");
+	copy_memory(u"Scott", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 2;
+	r.name_strlen = array_size(u"Paul");
+	copy_memory(u"Paul", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 4;
+	r.name_strlen = array_size(u"Scott");
+	copy_memory(u"Scott", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);
+
+	r.id = 2;
+	r.name_strlen = array_size(u"Paul");
+	copy_memory(u"Paul", r.name, r.name_strlen * 2);
+	db.insert_row(0, &r);*/
+
+	/*field.ui64value = 2;
+	db.remove_rows(0, 0, field, nullptr, nullptr);*/
+
+	//db.remove_column(0, 1, &dbr);
+
+	/*db.query_rows(0, [] (void *row_data) -> row_action
+		{
+			record *r = (record *)(row_data);
+			if(string_view<char16>(r->name, r->name_strlen) == string_view<char16>(u"Tom\0"))
+			{
+				r->age = 16;
+				return row_action::update;
+			}
+			return row_action::no_change;
+		});*/
+
+	field.u16str <<= u"Paul";
+	field.u16str << u'\0';
+	db.query_matched_rows(0, 2, field, [] (void *row_data) -> row_action
+		{
+			record *r = (record *)(row_data);
+			r->age = 18;
+			return row_action::update;
+		});
+
+	u16string dump;
+	dump_db(db, &dump);
+	for(uint64 i = 0; i < dump.size; i++)
+		if(dump[i] == u'\0') dump.remove(i--);
+#pragma pack(pop)
 }

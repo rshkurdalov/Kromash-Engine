@@ -3,7 +3,7 @@
 #include "os_api.h"
 
 bool caret_visible;
-timer_trigger_postaction caret_timer_callback(void *data)
+timer_trigger_postaction caret_timer_callback()
 {
 	caret_visible = !caret_visible;
 	os_update_windows();
@@ -122,7 +122,7 @@ struct text_field_render_glyph_args
 {
 	frame *fm;
 	text_field_data *tf;
-	bitmap_processor *bp;
+	graphics_displayer *gd;
 };
 
 void text_field_render_glyph(
@@ -148,13 +148,13 @@ void text_field_render_glyph(
 	{
 		rect.position = vector<int32, 2>(point.x, point.y - baseline);
 		rect.extent = vector<int32, 2>(gl.data->advance.x, line_height);
-		args->bp->br.switch_solid_color(alpha_color(0, 0, 200, 255));
-		args->bp->fill_area(rect, bmp);
+		args->gd->br.switch_solid_color(alpha_color(0, 0, 200, 255));
+		args->gd->fill_area(rect, bmp);
 	}
 	if(args->tf->editable && begin <= idx && idx < end)
-		args->bp->br.switch_solid_color(alpha_color(255, 255, 255, 255));
-	else args->bp->br.switch_solid_color(alpha_color(0, 0, 0, 255));
-	args->bp->fill_opacity_bitmap(
+		args->gd->br.switch_solid_color(alpha_color(255, 255, 255, 255));
+	else args->gd->br.switch_solid_color(alpha_color(0, 0, 0, 255));
+	args->gd->fill_opacity_bitmap(
 		gl.data->bmp,
 		vector<int32, 2>(
 			point.x + int32(gl.data->bmp_offset.x),
@@ -164,13 +164,13 @@ void text_field_render_glyph(
 	{
 		rect.position = vector<int32, 2>(point.x, point.y + gl.data->underline_offset);
 		rect.extent = vector<int32, 2>(gl.data->advance.x, gl.data->underline_size);
-		args->bp->fill_area(rect, bmp);
+		args->gd->fill_area(rect, bmp);
 	}
 	if(gl.strikedthrough)
 	{
 		rect.position = vector<int32, 2>(point.x, point.y + gl.data->strikethrough_offset);
 		rect.extent = vector<int32, 2>(gl.data->advance.x, gl.data->strikethrough_size);
-		args->bp->fill_area(rect, bmp);
+		args->gd->fill_area(rect, bmp);
 	}
 	if(caret_visible
 		&& focused_frame().core == args->fm
@@ -197,13 +197,12 @@ void text_field_render_glyph(
 		}
 		caret_rect.extent = vector<float32, 2>(2.0f, 0.8f * float32(line_height));
 		caret_path.push_rectangle(caret_rect);
-		set_identity_matrix(&args->bp->transform);
-		args->bp->br.switch_solid_color(alpha_color(0, 0, 0, 255));
-		args->bp->render(caret_path, bmp);
+		args->gd->br.switch_solid_color(alpha_color(0, 0, 0, 255));
+		args->gd->render(caret_path, bmp);
 	}
 }
 
-void text_field_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void text_field_data::render(handleable<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	rectangle viewport = fm.core->frame_viewport(),
 		content_viewport = fm.core->frame_content_viewport();
@@ -246,11 +245,11 @@ void text_field_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap 
 	}
 	tl.width = uint32(content_viewport.extent.x);
 	tl.height = uint32(content_viewport.extent.y);
-	bp->push_scissor(viewport);
+	gd->push_scissor(viewport);
 	text_field_render_glyph_args args;
 	args.fm = fm.core;
 	args.tf = this;
-	args.bp = bp;
+	args.gd = gd;
 	vector<int32, 2> text_point;
 	if(tl.multiline)
 		text_point = vector<int32, 2>(
@@ -269,7 +268,7 @@ void text_field_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap 
 		text_field_render_glyph,
 		&args,
 		bmp);
-	bp->pop_scissor();
+	gd->pop_scissor();
 	if(caret_visible
 		&& focused_frame().object.addr == fm.object.addr
 		&& editable
@@ -282,12 +281,11 @@ void text_field_data::render(handleable<frame> fm, bitmap_processor *bp, bitmap 
 		rect.extent = vector<float32, 2>(2.0f, 0.8f * float32(font_size));
 		geometry_path rect_path;
 		rect_path.push_rectangle(rect);
-		bp->rasterization = rasterization_mode::fill;
-		set_identity_matrix(&bp->transform);
-		bp->br.switch_solid_color(alpha_color(0, 0, 0, 255));
-		bp->render(rect_path, bmp);
+		gd->rasterization = rasterization_mode::fill;
+		gd->br.switch_solid_color(alpha_color(0, 0, 0, 255));
+		gd->render(rect_path, bmp);
 	}
-	scroll.fm.render(&scroll.fm, bp, bmp);
+	scroll.fm.render(&scroll.fm, gd, bmp);
 }
 
 void text_field_data::mouse_click(handleable<frame> fm)
@@ -318,7 +316,7 @@ void text_field_data::focus_receive(handleable<frame> fm)
 		nanoseconds period = 0;
 		period << milliseconds(500);
 		caret_timer->period = period.value;
-		caret_timer->callback = caret_timer_callback;
+		caret_timer->callback.assign(caret_timer_callback);
 	}
 	caret_timer->run();
 }
@@ -468,7 +466,7 @@ void text_field_model::initialize(handleable<frame> fm)
 	fm.core->padding_top = 4.0uiabs;
 }
 
-void text_field_model::render(handleable<frame> fm, text_field_data *data, bitmap_processor *bp, bitmap *bmp)
+void text_field_model::render(handleable<frame> fm, text_field_data *data, graphics_displayer *gd, bitmap *bmp)
 {
 	rectangle viewport = fm.core->frame_viewport(),
 		content_viewport = fm.core->frame_content_viewport();
@@ -486,7 +484,7 @@ void text_field_model::render(handleable<frame> fm, text_field_data *data, bitma
 			surface.data[i] = alpha_color(0, 0, 0, 0);
 		geometry_path path;
 		path.push_rectangle(rectangle<float32>(viewport));
-		bitmap_processor bp_surface;
+		graphics_displayer bp_surface;
 		bp_surface.br.switch_solid_color(alpha_color(255, 255, 255, 255));
 		bp_surface.render(path, &surface);
 		bp_surface.rasterization = rasterization_mode::outline;
@@ -494,7 +492,7 @@ void text_field_model::render(handleable<frame> fm, text_field_data *data, bitma
 		bp_surface.br.switch_solid_color(alpha_color(0, 0, 0, 255));
 		bp_surface.render(path, &surface);
 	}
-	bp->fill_bitmap(surface, vector<int32, 2>(fm.core->x, fm.core->y), bmp);
+	gd->fill_bitmap(surface, vector<int32, 2>(fm.core->x, fm.core->y), bmp);
 }
 
 bool text_field_hit_test(indefinite<frame> fm, vector<int32, 2> point)
@@ -517,11 +515,11 @@ vector<uint32, 2> text_field_content_size(indefinite<frame> fm, uint32 viewport_
 	return tf->data.content_size(handleable<frame>(tf, &tf->fm), viewport_width, viewport_height);
 }
 
-void text_field_render(indefinite<frame> fm, bitmap_processor *bp, bitmap *bmp)
+void text_field_render(indefinite<frame> fm, graphics_displayer *gd, bitmap *bmp)
 {
 	text_field *tf = (text_field *)(fm.addr);
-	tf->model.render(handleable<frame>(tf, &tf->fm), &tf->data, bp, bmp);
-	tf->data.render(handleable<frame>(tf, &tf->fm), bp, bmp);
+	tf->model.render(handleable<frame>(tf, &tf->fm), &tf->data, gd, bmp);
+	tf->data.render(handleable<frame>(tf, &tf->fm), gd, bmp);
 }
 
 void text_field_mouse_click(indefinite<frame> fm)
@@ -572,13 +570,13 @@ text_field::text_field()
 	fm.subframes = text_field_subframes;
 	fm.content_size = text_field_content_size;
 	fm.render = text_field_render;
-	fm.mouse_click.callbacks.push(text_field_mouse_click);
-	fm.mouse_move.callbacks.push(text_field_mouse_move);
-	fm.focus_receive.callbacks.push(text_field_focus_receive);
-	fm.focus_loss.callbacks.push(text_field_focus_loss);
-	fm.mouse_wheel_rotate.callbacks.push(text_field_mouse_wheel_rotate);
-	fm.key_press.callbacks.push(text_field_key_press);
-	fm.char_input.callbacks.push(text_field_char_input);
+	fm.mouse_click.callbacks.push_moving(text_field_mouse_click);
+	fm.mouse_move.callbacks.push_moving(text_field_mouse_move);
+	fm.focus_receive.callbacks.push_moving(text_field_focus_receive);
+	fm.focus_loss.callbacks.push_moving(text_field_focus_loss);
+	fm.mouse_wheel_rotate.callbacks.push_moving(text_field_mouse_wheel_rotate);
+	fm.key_press.callbacks.push_moving(text_field_key_press);
+	fm.char_input.callbacks.push_moving(text_field_char_input);
 	data.initialize(handleable<frame>(this, &fm));
 	model.initialize(handleable<frame>(this, &fm));
 }

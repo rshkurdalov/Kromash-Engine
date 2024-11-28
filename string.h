@@ -1,5 +1,7 @@
 #pragma once
 #include "real.h"
+#include <cstdlib>
+#include <string>
 
 template<typename char_type> struct string
 {
@@ -152,6 +154,15 @@ template<typename char_type> struct string
 		return addr[idx];
 	}
 
+	template<typename input_type>
+	string &operator<<(string<input_type> &source)
+	{
+		if(capacity < size + source.size) increase_capacity(size + source.size - capacity);
+		for(uint64 i = 0; i < source.size; i++)
+			*this << char_type(source[i]);
+		return *this;
+	}
+
 	string &operator<<(string &source)
 	{
 		insert_range(size, source.addr, source.addr + source.size);
@@ -172,6 +183,7 @@ template<typename char_type> struct string
 			push(char_type(*source));
 			source++;
 		}
+		return *this;
 	}
 
 	string &operator<<(const char_type *source)
@@ -223,6 +235,26 @@ template<typename char_type> struct string
 		}
 		return *this;
 	}
+
+	string &operator<<(float32 value)
+	{
+		std::string std_str = std::to_string(value);
+		while(std_str.back() == char_type('0')) std_str.pop_back();
+		if(std_str.back() == char_type('.')) std_str.pop_back();
+		for(size_t i = 0; i < std_str.size(); i++)
+			*this << char_type(std_str[i]);
+		return *this;
+	}
+
+	string &operator<<(float64 value)
+	{
+		std::string std_str = std::to_string(value);
+		while(std_str.back() == char_type('0')) std_str.pop_back();
+		if(std_str.back() == char_type('.')) std_str.pop_back();
+		for(size_t i = 0; i < std_str.size(); i++)
+			*this << char_type(std_str[i]);
+		return *this;
+	}
 	
 	string &operator<<(real value) //!!!
 	{
@@ -231,6 +263,13 @@ template<typename char_type> struct string
 		push(char_type('.'));
 		*this << uint64(value.fraction);
 		return *this;
+	}
+
+	template<typename input_type>
+	string &operator<<=(string<input_type> &source)
+	{
+		clear();
+		return *this << source;
 	}
 	
 	string &operator<<=(string &source)
@@ -286,6 +325,18 @@ template<typename char_type> struct string
 		clear();
 		return *this << value;
 	}
+
+	string &operator<<=(float32 value)
+	{
+		clear();
+		return *this << value;
+	}
+	
+	string &operator<<=(float64 value)
+	{
+		clear();
+		return *this << value;
+	}
 	
 	string &operator<<=(real value)
 	{
@@ -325,17 +376,74 @@ template<typename char_type> struct string
 	}
 };
 
-typedef string<char8> u8string;
-typedef string<char16> u16string;
-typedef string<char32> u32string;
-typedef string<wchar> wstring;
-
 template<typename char_type> struct copier<string<char_type>>
 {
 	void operator()(string<char_type> &input, string<char_type> *output)
 	{
 		output->clear();
 		output->insert_range(0, input.addr, input.addr + input.size);
+	}
+};
+
+template<typename char_type> struct mover<string<char_type>>
+{
+	void operator()(string<char_type> &input, string<char_type> *output)
+	{
+		output->addr = input.addr;
+		output->size = input.size;
+		output->capacity = input.capacity;
+		input.addr = nullptr;
+		input.size = 0;
+		input.capacity = 0;
+	}
+};
+
+typedef string<char8> u8string;
+typedef string<char16> u16string;
+typedef string<char32> u32string;
+typedef string<wchar> wstring;
+
+template<typename char_type> struct string_view
+{
+	char_type *addr;
+	uint64 size;
+
+	string_view() {}
+
+	string_view(char_type *addr, uint64 size) : addr(addr), size(size) {}
+
+	template<uint64 length> string_view(const char_type(&szstr)[length])
+		: addr(const_cast<char_type *>(szstr)), size(length - 1) {}
+
+	bool operator==(const string_view &value) const
+	{
+		if(size != value.size) return false;
+		for(uint64 i = 0; i < size; i++)
+			if(addr[i] != value.addr[i]) return false;
+		return true;
+	}
+
+	bool operator!=(const string_view &value) const
+	{
+		return !(*this == value);
+	}
+
+	bool operator<(const string_view &value) const
+	{
+		uint64 len = min(size, value.size);
+		for(uint64 i = 0; i < len; i++)
+			if(addr[i] < value.addr[i]) return true;
+			else if(addr[i] > value.addr[i]) return false;
+		return size < value.size;
+	}
+
+	bool operator>(const string_view &value) const
+	{
+		uint64 len = min(size, value.size);
+		for(uint64 i = 0; i < len; i++)
+			if(addr[i] > value.addr[i]) return true;
+			else if(addr[i] < value.addr[i]) return false;
+		return size > value.size;
 	}
 };
 
@@ -504,9 +612,6 @@ template<typename char_type> struct string_stream
 	}
 };
 
-#include <cstdlib>
-#include <string>
-
 /*Get length of size-zero string*/
 template<typename char_type>
 uint64 sz_length(const char_type *str)
@@ -549,6 +654,17 @@ char32 *create_u32sz(string<char_type> &str)
 	return addr;
 }
 
+/*Create string from str with zero symbol in the end*/
+template<typename char_type>
+wchar *create_wsz(string<char_type> &str)
+{
+	wchar *addr = new wchar[str.size + 1];
+	for(uint64 i = 0; i < str.size; i++)
+		addr[i] = wchar(str.addr[i]);
+	addr[str.size] = L'\0';
+	return addr;
+}
+
 /*Append converted string from input to output*/
 template<typename input_type, typename output_type>
 void convert_string(string<input_type> &input, string<output_type> *output)
@@ -584,7 +700,7 @@ float32 load_float32(const char_type *str, uint64 size, uint64 *chars_converted 
 {
 	u8string u8str;
 	for(uint64 i = 0; i < size; i++)
-		u8str << str[i];
+		u8str << char8(str[i]);
 	char8 *end;
 	float32 value = strtof(u8str.addr, &end);
 	if(chars_converted != nullptr)
@@ -607,7 +723,7 @@ float64 load_float64(const char_type *str, uint64 size, uint64 *chars_converted 
 {
 	u8string u8str;
 	for(uint64 i = 0; i < size; i++)
-		u8str << str[i];
+		u8str << char8(str[i]);
 	char8 *end;
 	float64 value = strtod(u8str.addr, &end);
 	if(chars_converted != nullptr)
